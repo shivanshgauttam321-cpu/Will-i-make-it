@@ -4,9 +4,14 @@ import type {
   RoutePlanResponse, Charger, TripRecord, DemoRoute
 } from '../types/api';
 
-const BASE = '/api';
+const BASE = (
+  import.meta.env.VITE_API_BASE_URL || '/api'
+).replace(/\/+$/, '');
 
-const api = axios.create({ baseURL: BASE, timeout: 30000 });
+const api = axios.create({
+  baseURL: BASE,
+  timeout: 30000,
+});
 
 export const healthCheck = () => api.get('/health').then(r => r.data);
 

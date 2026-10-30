@@ -59,6 +59,10 @@ app.add_middleware(
         "http://localhost:5173",
         "http://localhost:3000",
         "http://127.0.0.1:5173",
+        "https://will-i-make-it.vercel.app",
+        "http://localhost:5173",
+        "https://will-i-make-it-one.vercel.app",
+        "https://will-i-make-l6tim64aw-shivansh-574f.vercel.app",
         "*",  # Allow cross-origin requests from deployed frontend (e.g. Vercel, Render)
     ],
     allow_credentials=True,
