@@ -52,13 +52,14 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# CORS — allow frontend dev server
+# CORS — allow frontend dev and production deployments
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:5173",
         "http://localhost:3000",
         "http://127.0.0.1:5173",
+        "*",  # Allow cross-origin requests from deployed frontend (e.g. Vercel, Render)
     ],
     allow_credentials=True,
     allow_methods=["*"],
