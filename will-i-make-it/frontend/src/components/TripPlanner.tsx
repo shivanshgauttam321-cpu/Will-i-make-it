@@ -1,0 +1,824 @@
+import { useState, useEffect, useRef } from 'react';
+import { 
+  Zap, Thermometer, Weight, Wind, Car, 
+  RotateCcw, Sliders, ShieldCheck, Sun, CloudRain, Snowflake, Check,
+  MapPin, Search, ArrowUpDown, Navigation, Sparkles, BatteryCharging
+} from 'lucide-react';
+import { getDemoRoutes, planRoute, geocodePlaces } from '../utils/api';
+import { playCockpitClick } from '../utils/audioService';
+import type { VehicleProfile, DemoRoute, RoutePlanResponse, PlaceLocation } from '../types/api';
+
+interface Props {
+  vehicle: VehicleProfile;
+  onVehicleChange: (v: VehicleProfile) => void;
+  selectedRouteId: string;
+  onRouteSelect: (id: string) => void;
+  disabledChargers: string[];
+  onResult: (r: RoutePlanResponse) => void;
+  onError: (e: string | null) => void;
+  onLoading: (l: boolean) => void;
+  isLoading: boolean;
+  onCustomLocationsChange?: (
+    origin: { name: string; lat: number; lng: number } | null,
+    dest: { name: string; lat: number; lng: number } | null
+  ) => void;
+}
+
+// Indian EV Profiles
+export const INDIAN_EV_PRESETS: { name: string; tag: string; profile: VehicleProfile }[] = [
+  {
+    name: 'Tata Nexon.ev Max (LR)',
+    tag: '40.5 kWh · India Bestseller',
+    profile: {
+      battery_capacity_kwh: 40.5,
+      soc_start_pct: 85.0,
+      soc_reserve_pct: 10.0,
+      vehicle_mass_kg: 1400.0,
+      drag_coefficient: 0.29,
+      frontal_area_m2: 2.25,
+      rolling_resistance: 0.011,
+      drivetrain_efficiency: 0.89,
+      regen_efficiency: 0.68,
+      connector_types: ['CCS2', 'Type2_AC'],
+      ac_load_kw: 1.5,
+      payload_kg: 75.0,
+    }
+  },
+  {
+    name: 'Tata Punch.ev (LR)',
+    tag: '35.0 kWh · City & Highway',
+    profile: {
+      battery_capacity_kwh: 35.0,
+      soc_start_pct: 90.0,
+      soc_reserve_pct: 10.0,
+      vehicle_mass_kg: 1340.0,
+      drag_coefficient: 0.32,
+      frontal_area_m2: 2.20,
+      rolling_resistance: 0.012,
+      drivetrain_efficiency: 0.88,
+      regen_efficiency: 0.65,
+      connector_types: ['CCS2', 'Type2_AC'],
+      ac_load_kw: 1.2,
+      payload_kg: 75.0,
+    }
+  },
+  {
+    name: 'MG ZS EV',
+    tag: '50.3 kWh · Premium Crossover',
+    profile: {
+      battery_capacity_kwh: 50.3,
+      soc_start_pct: 80.0,
+      soc_reserve_pct: 10.0,
+      vehicle_mass_kg: 1540.0,
+      drag_coefficient: 0.29,
+      frontal_area_m2: 2.35,
+      rolling_resistance: 0.011,
+      drivetrain_efficiency: 0.90,
+      regen_efficiency: 0.70,
+      connector_types: ['CCS2', 'Type2_AC'],
+      ac_load_kw: 1.8,
+      payload_kg: 100.0,
+    }
+  },
+  {
+    name: 'Mahindra XUV400 EL Pro',
+    tag: '39.4 kWh · Performance EV',
+    profile: {
+      battery_capacity_kwh: 39.4,
+      soc_start_pct: 85.0,
+      soc_reserve_pct: 12.0,
+      vehicle_mass_kg: 1578.0,
+      drag_coefficient: 0.31,
+      frontal_area_m2: 2.30,
+      rolling_resistance: 0.012,
+      drivetrain_efficiency: 0.88,
+      regen_efficiency: 0.65,
+      connector_types: ['CCS2', 'Type2_AC'],
+      ac_load_kw: 1.6,
+      payload_kg: 80.0,
+    }
+  },
+  {
+    name: 'Hyundai Ioniq 5',
+    tag: '72.6 kWh · Ultra Long-Range',
+    profile: {
+      battery_capacity_kwh: 72.6,
+      soc_start_pct: 75.0,
+      soc_reserve_pct: 10.0,
+      vehicle_mass_kg: 1910.0,
+      drag_coefficient: 0.288,
+      frontal_area_m2: 2.45,
+      rolling_resistance: 0.010,
+      drivetrain_efficiency: 0.92,
+      regen_efficiency: 0.75,
+      connector_types: ['CCS2', 'Type2_AC'],
+      ac_load_kw: 1.5,
+      payload_kg: 80.0,
+    }
+  }
+];
+
+// Popular Indian EV Corridors for One-Click Planning
+const POPULAR_CORRIDORS = [
+  {
+    label: 'Delhi → Jaipur',
+    dist: '285 km',
+    origin: { name: 'Connaught Place, New Delhi', lat: 28.6315, lng: 77.2167 },
+    dest: { name: 'Jaipur (Pink City), Rajasthan', lat: 26.9124, lng: 75.7873 },
+  },
+  {
+    label: 'Mumbai → Pune',
+    dist: '148 km',
+    origin: { name: 'Mumbai / BKC, Maharashtra', lat: 19.0657, lng: 72.8687 },
+    dest: { name: 'Pune / Kharadi, Maharashtra', lat: 18.5512, lng: 73.9478 },
+  },
+  {
+    label: 'Bengaluru → Chennai',
+    dist: '346 km',
+    origin: { name: 'Indiranagar, Bengaluru', lat: 12.9784, lng: 77.6408 },
+    dest: { name: 'Chennai / OMR, Tamil Nadu', lat: 12.9940, lng: 80.2490 },
+  },
+  {
+    label: 'Mumbai → Goa',
+    dist: '550 km',
+    origin: { name: 'Mumbai / Nariman Point', lat: 18.9256, lng: 72.8242 },
+    dest: { name: 'Panaji, Goa', lat: 15.4909, lng: 73.8278 },
+  },
+  {
+    label: 'Delhi → Agra',
+    dist: '210 km',
+    origin: { name: 'Noida Sector 62, NCR', lat: 28.6280, lng: 77.3649 },
+    dest: { name: 'Agra / Taj Mahal, UP', lat: 27.1767, lng: 78.0081 },
+  },
+  {
+    label: 'Chandigarh → Delhi',
+    dist: '245 km',
+    origin: { name: 'Chandigarh Sector 17', lat: 30.7333, lng: 76.7794 },
+    dest: { name: 'Connaught Place, New Delhi', lat: 28.6315, lng: 77.2167 },
+  },
+];
+
+export default function TripPlanner({
+  vehicle, onVehicleChange, selectedRouteId, onRouteSelect,
+  disabledChargers, onResult, onError, onLoading, isLoading,
+  onCustomLocationsChange
+}: Props) {
+  const [demoRoutes, setDemoRoutes] = useState<DemoRoute[]>([]);
+  const [routeMode, setRouteMode] = useState<'custom' | 'preset'>('custom');
+  
+  // Custom Origin & Destination State
+  const [originText, setOriginText] = useState('Connaught Place, New Delhi');
+  const [destText, setDestText] = useState('Jaipur (Pink City), Rajasthan');
+  const [originLocation, setOriginLocation] = useState<PlaceLocation>({
+    name: 'Connaught Place, New Delhi',
+    lat: 28.6315,
+    lng: 77.2167,
+    type: 'City Center'
+  });
+  const [destLocation, setDestLocation] = useState<PlaceLocation>({
+    name: 'Jaipur (Pink City), Rajasthan',
+    lat: 26.9124,
+    lng: 75.7873,
+    type: 'Heritage City'
+  });
+
+  const [originSuggestions, setOriginSuggestions] = useState<PlaceLocation[]>([]);
+  const [destSuggestions, setDestSuggestions] = useState<PlaceLocation[]>([]);
+  const [showOriginMenu, setShowOriginMenu] = useState(false);
+  const [showDestMenu, setShowDestMenu] = useState(false);
+
+  const [ambientTemp, setAmbientTemp] = useState(28);
+  const [confidence, setConfidence] = useState(0.90);
+  const [selectedPresetName, setSelectedPresetName] = useState('Tata Nexon.ev Max (LR)');
+  const [showAdvanced, setShowAdvanced] = useState(false);
+
+  const originDebounceRef = useRef<number | null>(null);
+  const destDebounceRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    getDemoRoutes()
+      .then(r => setDemoRoutes(r.routes))
+      .catch(() => {});
+  }, []);
+
+  // Inform map when custom locations change
+  useEffect(() => {
+    if (routeMode === 'custom' && onCustomLocationsChange) {
+      onCustomLocationsChange(originLocation, destLocation);
+    }
+  }, [routeMode, originLocation, destLocation, onCustomLocationsChange]);
+
+  // Autocomplete search for Origin
+  const handleOriginChange = (text: string) => {
+    setOriginText(text);
+    setShowOriginMenu(true);
+
+    if (originDebounceRef.current) clearTimeout(originDebounceRef.current);
+    originDebounceRef.current = window.setTimeout(() => {
+      geocodePlaces(text)
+        .then(res => setOriginSuggestions(res.results))
+        .catch(() => {});
+    }, 250);
+  };
+
+  // Autocomplete search for Destination
+  const handleDestChange = (text: string) => {
+    setDestText(text);
+    setShowDestMenu(true);
+
+    if (destDebounceRef.current) clearTimeout(destDebounceRef.current);
+    destDebounceRef.current = window.setTimeout(() => {
+      geocodePlaces(text)
+        .then(res => setDestSuggestions(res.results))
+        .catch(() => {});
+    }, 250);
+  };
+
+  // Swap locations button
+  const handleSwapLocations = () => {
+    playCockpitClick();
+    const tempText = originText;
+    const tempLoc = originLocation;
+    setOriginText(destText);
+    setOriginLocation(destLocation);
+    setDestText(tempText);
+    setDestLocation(tempLoc);
+  };
+
+  // Quick select an Indian Corridor
+  const selectQuickCorridor = (c: typeof POPULAR_CORRIDORS[0]) => {
+    playCockpitClick();
+    setOriginText(c.origin.name);
+    setOriginLocation({ ...c.origin, type: 'Metro Hub' });
+    setDestText(c.dest.name);
+    setDestLocation({ ...c.dest, type: 'Destination Hub' });
+    setRouteMode('custom');
+  };
+
+  const selectPreset = (name: string) => {
+    playCockpitClick();
+    const preset = INDIAN_EV_PRESETS.find(p => p.name === name);
+    if (!preset) return;
+    setSelectedPresetName(name);
+    onVehicleChange({
+      ...preset.profile,
+      soc_start_pct: vehicle.soc_start_pct,
+      soc_reserve_pct: vehicle.soc_reserve_pct,
+      ac_load_kw: vehicle.ac_load_kw,
+    });
+  };
+
+  const updateVehicle = (field: keyof VehicleProfile, val: unknown) => {
+    onVehicleChange({ ...vehicle, [field]: val });
+  };
+
+  const applyWeatherPreset = (temp: number, acKw: number) => {
+    playCockpitClick();
+    setAmbientTemp(temp);
+    updateVehicle('ac_load_kw', acKw);
+  };
+
+  const handlePlan = async () => {
+    playCockpitClick();
+    onLoading(true);
+    onError(null);
+
+    try {
+      if (routeMode === 'custom') {
+        const res = await planRoute({
+          origin_lat: originLocation.lat,
+          origin_lng: originLocation.lng,
+          dest_lat: destLocation.lat,
+          dest_lng: destLocation.lng,
+          origin_name: originLocation.name,
+          dest_name: destLocation.name,
+          vehicle,
+          ambient_temp_c: ambientTemp,
+          confidence_target: confidence,
+          demo_route_id: undefined,
+          disabled_charger_ids: disabledChargers,
+        });
+        onRouteSelect('CUSTOM_ROUTE');
+        onResult(res);
+      } else {
+        const activePreset = demoRoutes.find(r => r.route_id === selectedRouteId) ?? demoRoutes[0];
+        const res = await planRoute({
+          origin_lat: activePreset ? activePreset.origin.lat : 19.076,
+          origin_lng: activePreset ? activePreset.origin.lng : 72.8777,
+          dest_lat: activePreset ? activePreset.destination.lat : 18.5204,
+          dest_lng: activePreset ? activePreset.destination.lng : 73.8567,
+          vehicle,
+          ambient_temp_c: ambientTemp,
+          confidence_target: confidence,
+          demo_route_id: selectedRouteId,
+          disabled_charger_ids: disabledChargers,
+        });
+        onResult(res);
+      }
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { detail?: string } }; message?: string })
+        ?.response?.data?.detail ?? (err as Error)?.message ?? 'Route calculation failed';
+      onError(msg);
+    } finally {
+      onLoading(false);
+    }
+  };
+
+  const activeRoute = demoRoutes.find(r => r.route_id === selectedRouteId);
+  const socTextColor = vehicle.soc_start_pct > 60 
+    ? 'text-cyan-400' 
+    : vehicle.soc_start_pct > 30 
+      ? 'text-amber-400' 
+      : 'text-rose-400';
+
+  return (
+    <div className="flex flex-col gap-3.5">
+      {/* 1. Cockpit Route Selector & Destination Picker */}
+      <div className="cockpit-panel hud-bracket">
+        {/* Header Tabs: Custom vs Demo */}
+        <div className="flex items-center justify-between mb-3 border-b border-cyan-900/40 pb-2.5">
+          <label className="label-cap flex items-center gap-1.5 text-cyan-300">
+            <Navigation size={13} className="text-cyan-400" />
+            JOURNEY CORRIDOR
+          </label>
+          <div className="flex bg-slate-950 p-0.5 rounded-lg border border-cyan-950 text-[11px] font-mono font-bold">
+            <button
+              type="button"
+              onClick={() => {
+                playCockpitClick();
+                setRouteMode('custom');
+              }}
+              className={`px-3 py-1 rounded-md transition-all ${
+                routeMode === 'custom'
+                  ? 'bg-cyan-600 text-white shadow-[0_0_8px_rgba(6,182,212,0.4)]'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              Custom Route
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                playCockpitClick();
+                setRouteMode('preset');
+                if (onCustomLocationsChange) onCustomLocationsChange(null, null);
+              }}
+              className={`px-3 py-1 rounded-md transition-all ${
+                routeMode === 'preset'
+                  ? 'bg-cyan-600 text-white shadow-[0_0_8px_rgba(6,182,212,0.4)]'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              Demo Corridors
+            </button>
+          </div>
+        </div>
+
+        {routeMode === 'custom' ? (
+          <div className="space-y-2.5">
+            {/* Start Origin Input */}
+            <div className="relative">
+              <label className="text-[11px] font-mono font-bold text-slate-300 flex items-center gap-1.5 mb-1">
+                <span className="w-4 h-4 rounded-full bg-cyan-600 text-slate-950 text-[10px] font-black flex items-center justify-center">A</span>
+                START ORIGIN (ANY LOCATION IN INDIA)
+              </label>
+              <div className="relative">
+                <input
+                  type="text"
+                  value={originText}
+                  onChange={e => handleOriginChange(e.target.value)}
+                  onFocus={() => {
+                    if (originSuggestions.length === 0) {
+                      geocodePlaces(originText).then(r => setOriginSuggestions(r.results)).catch(() => {});
+                    }
+                    setShowOriginMenu(true);
+                  }}
+                  placeholder="e.g. Connaught Place, New Delhi or Mumbai BKC"
+                  className="w-full bg-slate-950 border border-slate-700/80 rounded-xl pl-9 pr-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500 font-medium font-sans"
+                />
+                <Search size={14} className="absolute left-3 top-2.5 text-cyan-400 pointer-events-none" />
+              </div>
+
+              {/* Origin Autocomplete Suggestions */}
+              {showOriginMenu && originSuggestions.length > 0 && (
+                <div className="absolute left-0 right-0 top-full mt-1 bg-slate-900 border border-cyan-500/40 rounded-xl shadow-2xl py-1 z-50 max-h-48 overflow-y-auto">
+                  {originSuggestions.map((item, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => {
+                        playCockpitClick();
+                        setOriginLocation(item);
+                        setOriginText(item.name);
+                        setShowOriginMenu(false);
+                      }}
+                      className="w-full text-left px-3 py-1.5 text-xs text-slate-200 hover:bg-slate-800 flex items-center justify-between border-b border-slate-800/60 last:border-0"
+                    >
+                      <div className="truncate pr-2">
+                        <span className="font-semibold block truncate text-slate-100">{item.name}</span>
+                        {item.type && <span className="text-[10px] text-cyan-400 font-mono">{item.type}</span>}
+                      </div>
+                      <span className="text-[10px] text-cyan-400 font-mono shrink-0">
+                        {item.lat.toFixed(2)}, {item.lng.toFixed(2)}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Swap Button */}
+            <div className="flex justify-center -my-1">
+              <button
+                type="button"
+                onClick={handleSwapLocations}
+                title="Swap Origin and Destination"
+                className="p-1.5 rounded-full bg-slate-900 hover:bg-slate-800 border border-cyan-800/60 text-cyan-300 hover:text-white transition-all shadow-md active:scale-90"
+              >
+                <ArrowUpDown size={14} />
+              </button>
+            </div>
+
+            {/* Destination Input */}
+            <div className="relative">
+              <label className="text-[11px] font-mono font-bold text-slate-300 flex items-center gap-1.5 mb-1">
+                <span className="w-4 h-4 rounded-full bg-emerald-600 text-slate-950 text-[10px] font-black flex items-center justify-center">B</span>
+                DESTINATION (ANY DESTINATION IN INDIA)
+              </label>
+              <div className="relative">
+                <input
+                  type="text"
+                  value={destText}
+                  onChange={e => handleDestChange(e.target.value)}
+                  onFocus={() => {
+                    if (destSuggestions.length === 0) {
+                      geocodePlaces(destText).then(r => setDestSuggestions(r.results)).catch(() => {});
+                    }
+                    setShowDestMenu(true);
+                  }}
+                  placeholder="e.g. Jaipur, Agra, Goa, Pune, Chennai..."
+                  className="w-full bg-slate-950 border border-slate-700/80 rounded-xl pl-9 pr-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500 font-medium font-sans"
+                />
+                <MapPin size={14} className="absolute left-3 top-2.5 text-emerald-400 pointer-events-none" />
+              </div>
+
+              {/* Destination Autocomplete Suggestions */}
+              {showDestMenu && destSuggestions.length > 0 && (
+                <div className="absolute left-0 right-0 top-full mt-1 bg-slate-900 border border-emerald-500/40 rounded-xl shadow-2xl py-1 z-50 max-h-48 overflow-y-auto">
+                  {destSuggestions.map((item, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => {
+                        playCockpitClick();
+                        setDestLocation(item);
+                        setDestText(item.name);
+                        setShowDestMenu(false);
+                      }}
+                      className="w-full text-left px-3 py-1.5 text-xs text-slate-200 hover:bg-slate-800 flex items-center justify-between border-b border-slate-800/60 last:border-0"
+                    >
+                      <div className="truncate pr-2">
+                        <span className="font-semibold block truncate text-slate-100">{item.name}</span>
+                        {item.type && <span className="text-[10px] text-emerald-400 font-mono">{item.type}</span>}
+                      </div>
+                      <span className="text-[10px] text-emerald-400 font-mono shrink-0">
+                        {item.lat.toFixed(2)}, {item.lng.toFixed(2)}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Quick One-Click Indian Corridors */}
+            <div className="pt-1">
+              <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-400 block mb-1">
+                POPULAR QUICK CORRIDORS:
+              </span>
+              <div className="flex flex-wrap gap-1">
+                {POPULAR_CORRIDORS.map(c => (
+                  <button
+                    key={c.label}
+                    type="button"
+                    onClick={() => selectQuickCorridor(c)}
+                    className="text-[10px] font-mono px-2 py-0.5 rounded-lg bg-slate-950 hover:bg-slate-900 text-slate-300 hover:text-cyan-300 border border-slate-800 hover:border-cyan-500/40 transition-colors"
+                  >
+                    {c.label} <span className="text-cyan-400/70 font-mono">({c.dist})</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div>
+            <select
+              value={selectedRouteId}
+              onChange={e => {
+                playCockpitClick();
+                onRouteSelect(e.target.value);
+              }}
+              className="w-full bg-slate-950 border border-slate-700/80 rounded-xl px-3.5 py-2.5 text-sm text-slate-100 font-mono focus:outline-none focus:border-cyan-500 transition-colors cursor-pointer"
+            >
+              {demoRoutes.length === 0 && <option value="MUMBAI_PUNE">Loading routes...</option>}
+              {demoRoutes.map(r => (
+                <option key={r.route_id} value={r.route_id}>{r.label}</option>
+              ))}
+            </select>
+            {activeRoute && (
+              <p className="text-xs text-slate-400 mt-2 leading-relaxed font-sans">
+                {activeRoute.description}
+              </p>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* 2. Indian EV Vehicle Profile Cockpit Selector */}
+      <div className="cockpit-panel hud-bracket">
+        <div className="flex items-center justify-between mb-2.5">
+          <p className="label-cap flex items-center gap-1.5 text-cyan-300">
+            <Zap size={13} className="text-cyan-400" />
+            VEHICLE HARDWARE PROFILE
+          </p>
+          <span className="text-[11px] text-cyan-300 font-mono font-bold">
+            {vehicle.battery_capacity_kwh} kWh Usable Pack
+          </span>
+        </div>
+
+        {/* Preset Selector */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-3">
+          {INDIAN_EV_PRESETS.slice(0, 4).map(p => {
+            const isSelected = selectedPresetName === p.name;
+            return (
+              <button
+                key={p.name}
+                type="button"
+                onClick={() => selectPreset(p.name)}
+                className={`text-left px-3 py-2 rounded-xl text-xs transition-all border ${
+                  isSelected 
+                    ? 'bg-cyan-500/15 border-cyan-400/60 text-cyan-200 font-bold shadow-[0_0_12px_rgba(6,182,212,0.25)]' 
+                    : 'bg-slate-950 border-slate-800 text-slate-300 hover:bg-slate-900 hover:border-slate-700'
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <span className="truncate font-sans">{p.name.replace(' (LR)', '')}</span>
+                  {isSelected && <Check size={12} className="text-cyan-400 shrink-0" />}
+                </div>
+                <span className="text-[10px] text-slate-400 truncate block mt-0.5 font-mono">{p.tag}</span>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Battery Capacity & Reserve Inputs */}
+        <div className="grid grid-cols-2 gap-2.5 pt-1">
+          <div className="bg-slate-950 rounded-xl p-2.5 border border-slate-800">
+            <label className="text-[11px] text-slate-400 block mb-1 font-mono">BATTERY (kWh)</label>
+            <input
+              type="number" min={15} max={120} step={0.5}
+              value={vehicle.battery_capacity_kwh}
+              onChange={e => updateVehicle('battery_capacity_kwh', parseFloat(e.target.value) || 40)}
+              className="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1 text-sm font-mono text-white focus:outline-none focus:border-cyan-500"
+            />
+          </div>
+          <div className="bg-slate-950 rounded-xl p-2.5 border border-slate-800">
+            <label className="text-[11px] text-slate-400 block mb-1 font-mono">MIN RESERVE (%)</label>
+            <input
+              type="number" min={5} max={25} step={1}
+              value={vehicle.soc_reserve_pct}
+              onChange={e => updateVehicle('soc_reserve_pct', parseFloat(e.target.value) || 10)}
+              className="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1 text-sm font-mono text-white focus:outline-none focus:border-cyan-500"
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* 3. Starting State of Charge (SoC) Tactile Physical Energy Slider */}
+      <div className="cockpit-panel hud-bracket">
+        <div className="flex items-center justify-between mb-2">
+          <label className="label-cap flex items-center gap-1.5 text-cyan-300">
+            <BatteryCharging size={14} className="text-cyan-400 pulse-charging" />
+            STARTING STATE OF CHARGE (SOC)
+          </label>
+          <span className={`text-xl font-black font-mono tracking-tight ${socTextColor}`}>
+            {vehicle.soc_start_pct}%
+          </span>
+        </div>
+
+        <div className="space-y-2">
+          <input
+            type="range" min={15} max={100} step={1}
+            value={vehicle.soc_start_pct}
+            onChange={e => updateVehicle('soc_start_pct', parseFloat(e.target.value))}
+            className="w-full cursor-pointer h-2 bg-slate-950 rounded-lg"
+          />
+          <div className="flex justify-between text-[10px] text-slate-400 font-mono">
+            <span>15% (Critical)</span>
+            <span>50% (Nominal)</span>
+            <span>80% (Daily)</span>
+            <span>100% (Full)</span>
+          </div>
+        </div>
+      </div>
+
+      {/* 4. Ambient Climate & Cabin Thermal Management */}
+      <div className="cockpit-panel hud-bracket">
+        <div className="flex items-center justify-between mb-2.5">
+          <p className="label-cap flex items-center gap-1.5 text-cyan-300">
+            <Thermometer size={13} className="text-rose-400" />
+            CABIN CLIMATE & AMBIENT THERMAL
+          </p>
+          <span className="text-xs font-mono text-cyan-300 font-bold">{ambientTemp}°C</span>
+        </div>
+
+        {/* Quick Weather Presets */}
+        <div className="grid grid-cols-3 gap-1.5 mb-3">
+          <button
+            type="button"
+            onClick={() => applyWeatherPreset(42, 2.5)}
+            className="p-2 rounded-xl border border-slate-800 bg-slate-950 hover:bg-slate-900 text-left transition-all"
+          >
+            <div className="flex items-center gap-1 text-[11px] font-bold text-amber-400 font-mono">
+              <Sun size={12} />
+              SUMMER
+            </div>
+            <span className="text-[10px] text-slate-400 font-mono block mt-0.5">42°C · 2.5kW AC</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => applyWeatherPreset(28, 1.2)}
+            className="p-2 rounded-xl border border-slate-800 bg-slate-950 hover:bg-slate-900 text-left transition-all"
+          >
+            <div className="flex items-center gap-1 text-[11px] font-bold text-emerald-400 font-mono">
+              <CloudRain size={12} />
+              MODERATE
+            </div>
+            <span className="text-[10px] text-slate-400 font-mono block mt-0.5">28°C · 1.2kW AC</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => applyWeatherPreset(8, 2.0)}
+            className="p-2 rounded-xl border border-slate-800 bg-slate-950 hover:bg-slate-900 text-left transition-all"
+          >
+            <div className="flex items-center gap-1 text-[11px] font-bold text-cyan-400 font-mono">
+              <Snowflake size={12} />
+              WINTER
+            </div>
+            <span className="text-[10px] text-slate-400 font-mono block mt-0.5">8°C · 2.0kW Heat</span>
+          </button>
+        </div>
+
+        {/* Sliders for Temp and AC Load */}
+        <div className="space-y-3">
+          <div>
+            <div className="flex justify-between text-[11px] text-slate-300 mb-1 font-mono">
+              <span>Ambient Temperature</span>
+              <span>{ambientTemp}°C</span>
+            </div>
+            <input
+              type="range" min={0} max={48} step={1}
+              value={ambientTemp}
+              onChange={e => setAmbientTemp(parseInt(e.target.value))}
+              className="w-full cursor-pointer h-1.5 bg-slate-950 rounded-lg"
+            />
+          </div>
+
+          <div>
+            <div className="flex justify-between text-[11px] text-slate-300 mb-1 font-mono">
+              <span>Cabin Climate Power (AC / Heating)</span>
+              <span>{vehicle.ac_load_kw.toFixed(1)} kW</span>
+            </div>
+            <input
+              type="range" min={0} max={3.5} step={0.1}
+              value={vehicle.ac_load_kw}
+              onChange={e => updateVehicle('ac_load_kw', parseFloat(e.target.value))}
+              className="w-full cursor-pointer h-1.5 bg-slate-950 rounded-lg"
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* 5. Collapsible Advanced Physics & Confidence Target */}
+      <div className="cockpit-panel hud-bracket">
+        <button
+          type="button"
+          onClick={() => {
+            playCockpitClick();
+            setShowAdvanced(!showAdvanced);
+          }}
+          className="flex items-center justify-between w-full text-xs font-mono font-bold text-cyan-300 hover:text-white"
+        >
+          <span className="flex items-center gap-1.5">
+            <Sliders size={13} className="text-cyan-400" />
+            PAYLOAD, CONFIDENCE & PHYSICAL CONSTANTS
+          </span>
+          <span className="text-[10px] text-slate-400 font-mono">{showAdvanced ? '▲ COLLAPSE' : '▼ EXPAND'}</span>
+        </button>
+
+        {showAdvanced && (
+          <div className="grid grid-cols-2 gap-2.5 pt-3 mt-2 border-t border-cyan-900/40 text-xs">
+            <div>
+              <label className="text-[11px] text-slate-400 block mb-1 font-mono">PAYLOAD (KG)</label>
+              <input
+                type="number" min={0} max={500} step={10}
+                value={vehicle.payload_kg}
+                onChange={e => updateVehicle('payload_kg', parseFloat(e.target.value) || 0)}
+                className="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1 text-xs font-mono text-white"
+              />
+            </div>
+            <div>
+              <label className="text-[11px] text-slate-400 block mb-1 font-mono">CONFIDENCE TARGET</label>
+              <select
+                value={confidence}
+                onChange={e => setConfidence(parseFloat(e.target.value))}
+                className="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1 text-xs text-white font-mono"
+              >
+                <option value={0.90}>P90 (90% Conservative)</option>
+                <option value={0.95}>P95 (95% Ultra Conservative)</option>
+                <option value={0.99}>P99 (99% Extreme Reserve)</option>
+                <option value={0.50}>P50 (Nominal Expected)</option>
+              </select>
+            </div>
+            <div>
+              <label className="text-[11px] text-slate-400 block mb-1 font-mono">DRIVETRAIN EFFICIENCY</label>
+              <input
+                type="number" min={0.7} max={0.98} step={0.01}
+                value={vehicle.drivetrain_efficiency}
+                onChange={e => updateVehicle('drivetrain_efficiency', parseFloat(e.target.value))}
+                className="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1 text-xs font-mono text-white"
+              />
+            </div>
+            <div>
+              <label className="text-[11px] text-slate-400 block mb-1 font-mono">REGEN EFFICIENCY</label>
+              <input
+                type="number" min={0.4} max={0.9} step={0.05}
+                value={vehicle.regen_efficiency}
+                onChange={e => updateVehicle('regen_efficiency', parseFloat(e.target.value))}
+                className="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1 text-xs font-mono text-white"
+              />
+            </div>
+            <div className="col-span-2 pt-1">
+              <label className="text-[11px] text-slate-400 block mb-1.5 font-mono">COMPATIBLE CONNECTORS</label>
+              <div className="flex flex-wrap gap-1.5">
+                {['CCS2', 'Type2_AC', 'CHAdeMO', 'Bharat_DC', 'Bharat_AC'].map(ct => {
+                  const has = vehicle.connector_types.includes(ct);
+                  return (
+                    <button
+                      key={ct}
+                      type="button"
+                      onClick={() => {
+                        playCockpitClick();
+                        const updated = has 
+                          ? vehicle.connector_types.filter(c => c !== ct)
+                          : [...vehicle.connector_types, ct];
+                        updateVehicle('connector_types', updated);
+                      }}
+                      className={`px-2 py-1 rounded-md text-[11px] font-mono transition-all border ${
+                        has 
+                          ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/50 font-bold' 
+                          : 'bg-slate-950 text-slate-500 border-slate-800 hover:border-slate-700'
+                      }`}
+                    >
+                      {ct}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* 6. Main Action Trigger Button */}
+      <button 
+        type="button"
+        onClick={handlePlan} 
+        disabled={isLoading}
+        className="btn-primary w-full flex items-center justify-center gap-2 py-3 text-sm font-mono font-black tracking-wider uppercase shadow-[0_0_20px_rgba(6,182,212,0.35)] active:scale-[0.99]"
+      >
+        {isLoading ? (
+          <>
+            <div className="w-4 h-4 border-2 border-slate-950 border-t-transparent rounded-full animate-spin" />
+            <span>CALCULATING ROAD-SNAPPED TRAJECTORY...</span>
+          </>
+        ) : (
+          <>
+            <Navigation size={16} />
+            <span>COMPUTE EV FEASIBILITY & PLAN ROUTE</span>
+          </>
+        )}
+      </button>
+
+      {/* Outage Warning Banner if any chargers disabled */}
+      {disabledChargers.length > 0 && (
+        <div className="bg-amber-950/40 border border-amber-800/60 rounded-xl p-3 flex items-start gap-2.5">
+          <div className="w-2 h-2 rounded-full bg-amber-400 mt-1 shrink-0 animate-ping" />
+          <div className="text-xs text-amber-200 font-mono">
+            <span className="font-bold">{disabledChargers.length} charging station(s)</span> marked offline.
+            Routes automatically avoid these stations.
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
