@@ -1,7 +1,7 @@
 import { useEffect, useState, useMemo } from 'react';
 import { MapContainer, TileLayer, Polyline, Marker, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
-import { ExternalLink, Layers, Navigation, Compass, Crosshair } from 'lucide-react';
+import { ExternalLink, Layers, Navigation, Compass, Crosshair, Zap } from 'lucide-react';
 import type { RoutePlanResponse, DemoRoute, Charger } from '../types/api';
 import { getDemoRoute, getAllChargers } from '../utils/api';
 import { playCockpitClick } from '../utils/audioService';
@@ -14,10 +14,10 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
 });
 
-// Custom SVG Icons
+// Custom SVG Icons (Meitriya Style: Cyan Origin, Orange Destination, High-Contrast Charger Pins)
 const createOriginIcon = () => L.divIcon({
   html: `
-    <div style="background:#2563eb;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:white;font-weight:800;font-size:13px;border:2.5px solid white;box-shadow:0 0 12px rgba(37,99,235,0.9)">
+    <div style="background:#06b6d4;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#0b0e14;font-weight:900;font-size:12px;border:2.5px solid #ffffff;box-shadow:0 4px 12px rgba(6,182,212,0.6)">
       A
     </div>
   `,
@@ -28,7 +28,7 @@ const createOriginIcon = () => L.divIcon({
 
 const createDestIcon = () => L.divIcon({
   html: `
-    <div style="background:#059669;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:white;font-weight:800;font-size:13px;border:2.5px solid white;box-shadow:0 0 12px rgba(5,150,105,0.9)">
+    <div style="background:#f97316;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#ffffff;font-weight:900;font-size:12px;border:2.5px solid #ffffff;box-shadow:0 4px 12px rgba(249,115,22,0.6)">
       B
     </div>
   `,
@@ -38,13 +38,13 @@ const createDestIcon = () => L.divIcon({
 });
 
 const createChargerIcon = (isDown: boolean, isStop: boolean, relScore: number) => {
-  const bg = isDown ? '#f43f5e' : (relScore >= 0.75 ? '#10b981' : '#f59e0b');
-  const size = isStop ? 28 : 20;
-  const halo = isStop ? `box-shadow:0 0 16px ${bg};animation:pulse 1.8s infinite;` : `box-shadow:0 0 6px ${bg};`;
+  const bg = isDown ? '#f43f5e' : (isStop ? '#f97316' : (relScore >= 0.75 ? '#10b981' : '#f59e0b'));
+  const size = isStop ? 30 : 22;
+  const halo = isStop ? `box-shadow:0 0 16px ${bg};animation:pulse 2s infinite;` : `box-shadow:0 2px 8px rgba(0,0,0,0.5);`;
   
   return L.divIcon({
     html: `
-      <div style="background:${bg};width:${size}px;height:${size}px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:white;font-size:${isStop ? 12 : 10}px;font-weight:bold;border:2px solid white;${halo}">
+      <div style="background:${bg};width:${size}px;height:${size}px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:white;font-size:${isStop ? 13 : 10}px;font-weight:bold;border:2px solid white;${halo}">
         ⚡
       </div>
     `,
@@ -58,7 +58,7 @@ function FitBounds({ positions }: { positions: [number, number][] }) {
   const map = useMap();
   useEffect(() => {
     if (positions.length > 1) {
-      map.fitBounds(positions, { padding: [45, 45], maxZoom: 14 });
+      map.fitBounds(positions, { padding: [40, 40], maxZoom: 14 });
     }
   }, [map, positions]);
   return null;
@@ -69,7 +69,7 @@ type MapStyle = 'google-roads' | 'google-satellite' | 'google-terrain' | 'carto-
 
 const MAP_LAYERS: Record<MapStyle, { name: string; url: string; subdomains?: string[]; attribution: string; maxZoom: number }> = {
   'google-roads': {
-    name: 'Google Maps (Roads)',
+    name: 'Google Roads',
     url: 'https://mt{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}',
     subdomains: ['0', '1', '2', '3'],
     attribution: '&copy; Google Maps',
@@ -185,9 +185,9 @@ export default function RouteMap({
       if (plannedStopIds.has(c.charger_id)) return true;
       if (demoRoute?.charger_ids?.includes(c.charger_id)) return true;
       if (exactRoadGeometry.length > 0) {
-        // Within 40 km of any point on the route polyline
+        // Within ~60 km of any point on the route polyline
         const minDistance = Math.min(...exactRoadGeometry.map(pt => Math.hypot(c.lat - pt[0], c.lng - pt[1])));
-        return minDistance < 0.6; // ~60 km
+        return minDistance < 0.6;
       }
       return false;
     });
@@ -225,28 +225,28 @@ export default function RouteMap({
   const currentLayer = MAP_LAYERS[activeLayer];
 
   return (
-    <div className="relative w-full h-full rounded-2xl overflow-hidden border border-cyan-900/50 shadow-2xl flex flex-col hud-bracket">
-      {/* Top Map Action Bar */}
+    <div className="relative w-full h-full rounded-2xl overflow-hidden border border-[#222938] shadow-2xl flex flex-col bg-[#0e1219]">
+      {/* Top Map Action Bar (Floating Meitriya Bar) */}
       <div className="absolute top-3 left-3 right-3 z-[1000] flex items-center justify-between pointer-events-none gap-2">
         {/* Navigation / Precision Badge */}
-        <div className="bg-slate-950/90 backdrop-blur-md px-3 py-1.5 rounded-xl border border-cyan-800/60 shadow-[0_0_12px_rgba(6,182,212,0.25)] text-xs font-mono font-medium text-slate-200 flex items-center gap-2 pointer-events-auto">
-          <Navigation className="w-3.5 h-3.5 text-cyan-400 animate-pulse" />
-          <span className="font-bold text-white uppercase tracking-wider">ROAD-SNAPPED CORRIDOR</span>
-          <span className="text-[10px] bg-cyan-500/20 text-cyan-300 font-mono px-1.5 py-0.5 rounded border border-cyan-500/30">
+        <div className="bg-[#121620]/95 backdrop-blur-md px-3 py-1.5 rounded-xl border border-[#262f42] shadow-lg text-xs font-mono font-medium text-slate-200 flex items-center gap-2 pointer-events-auto">
+          <Navigation className="w-3.5 h-3.5 text-orange-400" />
+          <span className="font-bold text-white text-[11px] uppercase tracking-wider">ROAD-SNAPPED ROUTE</span>
+          <span className="text-[10px] bg-[#1a2130] text-cyan-400 font-mono px-1.5 py-0.5 rounded border border-[#242c3d]">
             {exactRoadGeometry.length} GPS
           </span>
         </div>
 
-        {/* Right Controls: Layer Switcher & Open in Google Maps */}
+        {/* Right Controls: Turn-by-Turn Nav & Layer Switcher */}
         <div className="flex items-center gap-2 pointer-events-auto">
-          {/* Open in Google Maps Button */}
+          {/* Open in Google Maps Button (Meitriya Orange Style) */}
           <a
             href={googleMapsUrl}
             target="_blank"
             rel="noopener noreferrer"
             onClick={() => playCockpitClick()}
             title="Open turn-by-turn route with charging stops directly in Google Maps"
-            className="flex items-center gap-1.5 bg-cyan-600 hover:bg-cyan-500 active:scale-95 text-slate-950 text-xs font-mono font-black px-3 py-1.5 rounded-xl shadow-[0_0_12px_rgba(6,182,212,0.4)] transition-all border border-cyan-400"
+            className="flex items-center gap-1.5 bg-orange-500 hover:bg-orange-600 active:scale-95 text-white text-xs font-mono font-bold px-3 py-1.5 rounded-xl shadow-md shadow-orange-950/40 transition-all border border-orange-400/40"
           >
             <span>GOOGLE MAPS NAV</span>
             <ExternalLink className="w-3.5 h-3.5" />
@@ -260,16 +260,16 @@ export default function RouteMap({
                 playCockpitClick();
                 setShowLayerMenu(!showLayerMenu);
               }}
-              className="flex items-center gap-1.5 bg-slate-950/90 hover:bg-slate-900 backdrop-blur-md px-2.5 py-1.5 rounded-xl border border-slate-700 hover:border-cyan-500/40 text-xs font-mono font-bold text-slate-200 shadow-lg transition-colors"
+              className="flex items-center gap-1.5 bg-[#121620]/95 hover:bg-[#1a202c] backdrop-blur-md px-2.5 py-1.5 rounded-xl border border-[#262f42] hover:border-slate-600 text-xs font-mono font-medium text-slate-200 shadow-md transition-colors"
             >
-              <Layers className="w-3.5 h-3.5 text-cyan-400" />
+              <Layers className="w-3.5 h-3.5 text-orange-400" />
               <span className="hidden sm:inline">{currentLayer.name}</span>
             </button>
 
             {showLayerMenu && (
-              <div className="absolute right-0 mt-1 w-52 bg-slate-950 border border-cyan-500/40 rounded-xl shadow-2xl py-1 z-[1100] backdrop-blur-xl">
-                <div className="px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-cyan-400 border-b border-slate-800 font-mono">
-                  Select Map Provider
+              <div className="absolute right-0 mt-1 w-48 bg-[#121620] border border-[#262f42] rounded-xl shadow-2xl py-1 z-[1100] backdrop-blur-xl">
+                <div className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400 border-b border-[#1e2535] font-mono">
+                  Map Provider
                 </div>
                 {(Object.keys(MAP_LAYERS) as MapStyle[]).map(key => (
                   <button
@@ -282,12 +282,12 @@ export default function RouteMap({
                     }}
                     className={`w-full text-left px-3 py-1.5 text-xs transition-colors flex items-center justify-between font-mono ${
                       activeLayer === key
-                        ? 'bg-cyan-600/30 text-cyan-300 font-bold'
-                        : 'text-slate-300 hover:bg-slate-900'
+                        ? 'bg-orange-500/15 text-orange-400 font-bold'
+                        : 'text-slate-300 hover:bg-[#181e2b]'
                     }`}
                   >
                     <span>{MAP_LAYERS[key].name}</span>
-                    {activeLayer === key && <span className="text-cyan-400 text-xs">✓</span>}
+                    {activeLayer === key && <span className="text-orange-400 text-xs">✓</span>}
                   </button>
                 ))}
               </div>
@@ -302,7 +302,6 @@ export default function RouteMap({
         style={{ height: '100%', width: '100%' }}
         zoomControl={true}
       >
-        {/* Dynamic Tile Layer (Google Roads, Google Satellite, Google Terrain, Dark Nav, OSM) */}
         <TileLayer
           key={activeLayer}
           attribution={currentLayer.attribution}
@@ -311,16 +310,16 @@ export default function RouteMap({
           maxZoom={currentLayer.maxZoom}
         />
 
-        {/* Route Paths Snapped Directly to Exact Roads */}
+        {/* Route Paths */}
         {exactRoadGeometry.length > 1 && (
           <>
-            {/* Primary Route Outer Glow / Casing (Google Maps Style) */}
+            {/* Primary Route Outer Line */}
             <Polyline
               positions={exactRoadGeometry}
               pathOptions={{
-                color: '#0284c7',
-                weight: 7,
-                opacity: 0.55,
+                color: '#0369a1',
+                weight: 6,
+                opacity: 0.6,
                 lineCap: 'round',
                 lineJoin: 'round',
               }}
@@ -330,8 +329,8 @@ export default function RouteMap({
             <Polyline
               positions={exactRoadGeometry}
               pathOptions={{
-                color: '#38bdf8',
-                weight: 4.5,
+                color: '#0284c7',
+                weight: 4,
                 opacity: 0.95,
                 lineCap: 'round',
                 lineJoin: 'round',
@@ -344,7 +343,7 @@ export default function RouteMap({
                 positions={exactRoadGeometry}
                 pathOptions={{
                   color: '#10b981',
-                  weight: 3.5,
+                  weight: 3,
                   opacity: 0.9,
                   dashArray: '8 6',
                 }}
@@ -358,7 +357,7 @@ export default function RouteMap({
           <Marker position={[origin.lat, origin.lng]} icon={createOriginIcon()}>
             <Popup>
               <div className="p-1">
-                <span className="text-[10px] uppercase font-bold text-blue-400 block tracking-wider">Start Origin</span>
+                <span className="text-[10px] uppercase font-bold text-cyan-400 block tracking-wider font-mono">Start Origin</span>
                 <strong className="text-xs text-white">{origin.name}</strong>
                 <p className="text-[10px] text-slate-400 font-mono mt-0.5">{origin.lat.toFixed(4)}, {origin.lng.toFixed(4)}</p>
               </div>
@@ -371,7 +370,7 @@ export default function RouteMap({
           <Marker position={[dest.lat, dest.lng]} icon={createDestIcon()}>
             <Popup>
               <div className="p-1">
-                <span className="text-[10px] uppercase font-bold text-emerald-400 block tracking-wider">Destination</span>
+                <span className="text-[10px] uppercase font-bold text-orange-400 block tracking-wider font-mono">Destination</span>
                 <strong className="text-xs text-white">{dest.name}</strong>
                 <p className="text-[10px] text-slate-400 font-mono mt-0.5">{dest.lat.toFixed(4)}, {dest.lng.toFixed(4)}</p>
               </div>
@@ -391,9 +390,9 @@ export default function RouteMap({
               icon={createChargerIcon(isDown, isStop, charger.reliability_score)}
             >
               <Popup>
-                <div className="p-1.5 min-w-[200px]">
+                <div className="p-1.5 min-w-[210px]">
                   <div className="flex items-center justify-between gap-1 mb-1">
-                    <strong className="text-xs text-white">{charger.name}</strong>
+                    <strong className="text-xs text-white font-sans">{charger.name}</strong>
                     <span className={`text-[10px] px-1.5 py-0.2 rounded font-mono font-bold ${
                       isDown ? 'bg-rose-500/20 text-rose-300' : 'bg-emerald-500/20 text-emerald-300'
                     }`}>
@@ -402,7 +401,7 @@ export default function RouteMap({
                   </div>
 
                   <p className="text-[11px] text-slate-300">
-                    {charger.operator} · <span className="font-mono text-cyan-300">{charger.max_power_kw} kW</span>
+                    {charger.operator} · <span className="font-mono text-orange-400 font-semibold">{charger.max_power_kw} kW</span>
                   </p>
                   <p className="text-[10px] text-slate-400 mb-2 truncate">
                     {charger.address}
@@ -410,23 +409,23 @@ export default function RouteMap({
 
                   <div className="flex flex-wrap gap-1 mb-2">
                     {charger.connector_types.map(ct => (
-                      <span key={ct} className="text-[9px] bg-slate-800 text-slate-300 px-1 py-0.5 rounded border border-slate-700">
+                      <span key={ct} className="text-[9px] bg-[#1a2130] text-slate-300 px-1 py-0.5 rounded border border-[#242c3d] font-mono">
                         {ct}
                       </span>
                     ))}
                   </div>
 
-                  {/* Interactive toggle directly on map! */}
+                  {/* Interactive 1-click toggle */}
                   <button
                     type="button"
                     onClick={() => onChargerToggle(charger.charger_id, !isDown)}
-                    className={`w-full text-[11px] font-semibold py-1 px-2 rounded-lg transition-colors ${
+                    className={`w-full text-[11px] font-semibold py-1.5 px-2 rounded-lg transition-colors font-mono ${
                       isDown 
-                        ? 'bg-emerald-500 hover:bg-emerald-400 text-slate-950' 
+                        ? 'bg-emerald-600 hover:bg-emerald-500 text-white' 
                         : 'bg-rose-600 hover:bg-rose-500 text-white'
                     }`}
                   >
-                    {isDown ? '✓ Restore Station' : '⚡ Simulate Station Failure'}
+                    {isDown ? '✓ Restore Station' : '⚡ Simulate Outage'}
                   </button>
                 </div>
               </Popup>
@@ -437,11 +436,11 @@ export default function RouteMap({
         {exactRoadGeometry.length > 1 && <FitBounds positions={exactRoadGeometry} />}
       </MapContainer>
 
-      {/* Floating Map Legend Overlay */}
-      <div className="absolute bottom-3 right-3 bg-slate-900/90 backdrop-blur-md p-2.5 rounded-xl border border-slate-700/80 shadow-lg z-[1000] text-[11px] space-y-1.5 font-medium pointer-events-auto">
+      {/* Floating Map Legend Overlay (Meitriya Style) */}
+      <div className="absolute bottom-3 right-3 bg-[#121620]/95 backdrop-blur-md p-2.5 rounded-xl border border-[#262f42] shadow-lg z-[1000] text-[11px] space-y-1.5 font-medium pointer-events-auto">
         <div className="flex items-center gap-2">
-          <div className="w-4 h-1 bg-cyan-400 rounded-full shadow-[0_0_6px_rgba(56,189,248,0.8)]" />
-          <span className="text-slate-200 font-semibold">Fastest Road Route</span>
+          <div className="w-4 h-1 bg-sky-500 rounded-full" />
+          <span className="text-slate-200">Fastest Route</span>
         </div>
         {routeResult?.risk_aware_route && (
           <div className="flex items-center gap-2">
@@ -450,7 +449,7 @@ export default function RouteMap({
           </div>
         )}
         <div className="flex items-center gap-2">
-          <div className="w-2.5 h-2.5 rounded-full bg-emerald-400 border border-white" />
+          <div className="w-2.5 h-2.5 rounded-full bg-orange-500 border border-white" />
           <span className="text-slate-300">Planned Charging Stop</span>
         </div>
         {disabledChargers.length > 0 && (

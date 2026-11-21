@@ -128,9 +128,9 @@ export default function RouteResults({
 
   return (
     <div className="flex flex-col gap-4">
-      {/* Route Switcher: Drive Modes (Fastest vs Risk-Aware) */}
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 bg-slate-950/90 border border-cyan-900/40 rounded-2xl p-1.5 shadow-xl backdrop-blur-md">
-        <div className="flex gap-2 flex-1">
+      {/* Route Mode Switcher & Live Simulation Action Bar (Meitriya Style) */}
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 bg-[#121620] border border-[#222938] rounded-2xl p-2 shadow-xl">
+        <div className="flex gap-1.5 flex-1">
           {/* Fastest Mode */}
           <button
             type="button"
@@ -138,16 +138,18 @@ export default function RouteResults({
               playCockpitClick();
               setActiveTab('fastest');
             }}
-            className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-xs font-mono font-bold transition-all ${
+            className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-xl text-xs font-mono font-medium transition-all ${
               activeTab === 'fastest'
-                ? 'bg-slate-900 text-cyan-300 shadow-[0_0_15px_rgba(6,182,212,0.3)] border border-cyan-500/50'
-                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/50'
+                ? 'bg-orange-500 text-white shadow-sm font-bold'
+                : 'text-slate-400 hover:text-slate-200 hover:bg-[#181e2b]'
             }`}
           >
-            <Compass size={14} className={activeTab === 'fastest' ? 'text-cyan-400' : 'text-slate-500'} />
+            <Compass size={14} className={activeTab === 'fastest' ? 'text-white' : 'text-slate-500'} />
             <span>FASTEST ROUTE</span>
             {result.recommended === result.fastest_route.route_id && (
-              <span className="text-[10px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 px-1.5 py-0.2 rounded font-mono">
+              <span className={`text-[10px] px-1.5 py-0.2 rounded font-mono ${
+                activeTab === 'fastest' ? 'bg-black/30 text-white' : 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
+              }`}>
                 RECOMMENDED
               </span>
             )}
@@ -161,16 +163,18 @@ export default function RouteResults({
                 playCockpitClick();
                 setActiveTab('risk_aware');
               }}
-              className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-xs font-mono font-bold transition-all ${
+              className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-xl text-xs font-mono font-medium transition-all ${
                 activeTab === 'risk_aware'
-                  ? 'bg-slate-900 text-emerald-300 shadow-[0_0_15px_rgba(16,185,129,0.3)] border border-emerald-500/50'
-                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/50'
+                  ? 'bg-emerald-600 text-white shadow-sm font-bold'
+                  : 'text-slate-400 hover:text-slate-200 hover:bg-[#181e2b]'
               }`}
             >
-              <ShieldCheck size={14} className={activeTab === 'risk_aware' ? 'text-emerald-400' : 'text-slate-500'} />
+              <ShieldCheck size={14} className={activeTab === 'risk_aware' ? 'text-white' : 'text-slate-500'} />
               <span>RISK-AWARE ROUTE</span>
               {result.recommended === result.risk_aware_route.route_id && (
-                <span className="text-[10px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 px-1.5 py-0.2 rounded font-mono">
+                <span className={`text-[10px] px-1.5 py-0.2 rounded font-mono ${
+                  activeTab === 'risk_aware' ? 'bg-black/30 text-white' : 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
+                }`}>
                   RECOMMENDED
                 </span>
               )}
@@ -183,23 +187,23 @@ export default function RouteResults({
           type="button"
           onClick={handleSimulateDrive}
           disabled={isSimulating}
-          className="btn-secondary text-xs font-mono flex items-center justify-center gap-2 py-2.5 px-3.5 font-bold text-cyan-300 shrink-0 border-cyan-500/40 hover:bg-cyan-500/10 shadow-[0_0_12px_rgba(6,182,212,0.2)]"
+          className="bg-[#181e2b] hover:bg-[#202738] text-slate-200 hover:text-white border border-[#262f42] hover:border-slate-600 text-xs font-mono flex items-center justify-center gap-2 py-2 px-3.5 rounded-xl font-semibold transition-all shrink-0 active:scale-95"
         >
           {isSimulating ? (
-            <div className="w-3.5 h-3.5 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin" />
+            <div className="w-3.5 h-3.5 border-2 border-orange-400 border-t-transparent rounded-full animate-spin" />
           ) : (
-            <Play size={13} className="text-cyan-400 fill-cyan-400" />
+            <Play size={13} className="text-orange-400 fill-orange-400" />
           )}
-          <span>SIMULATE REAL-WORLD DRIVE</span>
+          <span>SIMULATE DRIVE</span>
         </button>
       </div>
 
       {/* Dynamic Outage Reroute Banner */}
       {result.charger_failure_scenario && (
-        <div className="bg-amber-950/40 border border-amber-500/50 rounded-2xl p-4 flex items-start gap-3 shadow-[0_0_20px_rgba(245,158,11,0.2)]">
-          <AlertTriangle size={20} className="text-amber-400 shrink-0 mt-0.5 animate-bounce" />
-          <div className="text-xs text-amber-200 leading-relaxed font-sans">
-            <span className="font-bold text-amber-100 uppercase tracking-wider font-mono mr-1">
+        <div className="bg-[#1c1610] border border-orange-500/40 rounded-2xl p-4 flex items-start gap-3 shadow-lg">
+          <AlertTriangle size={18} className="text-orange-400 shrink-0 mt-0.5" />
+          <div className="text-xs text-orange-200 leading-relaxed font-sans">
+            <span className="font-bold text-orange-100 uppercase tracking-wider font-mono mr-1">
               [DYNAMIC REROUTE TRIGGERED]:
             </span>
             {result.charger_failure_scenario}
@@ -207,39 +211,34 @@ export default function RouteResults({
         </div>
       )}
 
-      {/* Main Cockpit Telemetry Card */}
-      <div className="cockpit-panel hud-bracket shadow-2xl relative overflow-hidden">
-        {/* Glow Accent */}
-        <div className={`absolute -top-12 -right-12 w-64 h-64 rounded-full blur-3xl pointer-events-none opacity-20 ${
-          selectedRoute.feasible ? 'bg-cyan-500' : 'bg-rose-500'
-        }`} />
-
+      {/* Main Telemetry & Energy Intelligence Card (Meitriya Style) */}
+      <div className="bg-[#121620] border border-[#222938] rounded-2xl p-4 shadow-xl">
         {/* Header Bar */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-cyan-900/40">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3.5 border-b border-[#1e2535]">
           <div>
-            <div className="flex items-center gap-2.5 flex-wrap">
-              <h3 className="font-black text-white text-base tracking-tight font-sans">
+            <div className="flex items-center gap-2 flex-wrap">
+              <h3 className="font-extrabold text-white text-base tracking-tight font-sans">
                 {selectedRoute.label}
               </h3>
               <span className={`badge-pill text-[10px] font-mono ${riskBadge.color}`}>
                 {riskBadge.label} ({(selectedRoute.risk_score * 100).toFixed(0)}%)
               </span>
               {isRecommended && (
-                <span className="badge-pill bg-cyan-500/15 text-cyan-300 border-cyan-500/40 text-[10px] font-mono font-bold shadow-[0_0_10px_rgba(6,182,212,0.2)]">
+                <span className="badge-pill bg-orange-500/10 text-orange-300 border-orange-500/30 text-[10px] font-mono font-bold">
                   ✓ RECOMMENDED STRATEGY
                 </span>
               )}
             </div>
-            <p className="text-xs text-cyan-200/60 mt-1 font-sans">{selectedRoute.description}</p>
+            <p className="text-xs text-slate-400 mt-0.5">{selectedRoute.description}</p>
           </div>
 
-          {/* Feasibility HUD Indicator */}
-          <div className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl border text-xs font-mono font-bold shadow-lg ${
+          {/* Feasibility Indicator */}
+          <div className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-mono font-bold shadow-sm ${
             selectedRoute.feasible 
-              ? 'bg-emerald-950/70 border-emerald-500/50 text-emerald-300 shadow-[0_0_15px_rgba(16,185,129,0.25)]'
-              : 'bg-rose-950/70 border-rose-500/50 text-rose-300 shadow-[0_0_15px_rgba(244,63,94,0.25)]'
+              ? 'bg-emerald-500/10 border-emerald-500/40 text-emerald-300'
+              : 'bg-rose-500/10 border-rose-500/40 text-rose-300'
           }`}>
-            {selectedRoute.feasible ? <CheckCircle size={16} /> : <XCircle size={16} />}
+            {selectedRoute.feasible ? <CheckCircle size={15} /> : <XCircle size={15} />}
             <span>
               {selectedRoute.feasible 
                 ? `FEASIBLE (+${selectedRoute.feasibility_margin_kwh.toFixed(1)} kWh RESERVE)`
@@ -249,52 +248,53 @@ export default function RouteResults({
           </div>
         </div>
 
-        {/* 4 Key Cockpit Telemetry Dials */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 py-4">
-          <div className="card-subtle text-center border-cyan-950/80 bg-slate-950/70">
-            <span className="label-cap block mb-1 text-slate-400">TOTAL DISTANCE</span>
-            <span className="stat-val text-white">{selectedRoute.distance_km}</span>
-            <span className="text-[11px] text-cyan-400 ml-1 font-mono font-bold">km</span>
+        {/* 4 Key Metric Dials (Clean Charcoal Tiles) */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5 py-3.5">
+          <div className="bg-[#0e1219] border border-[#1e2535] rounded-xl p-3 text-center">
+            <span className="text-[10px] font-mono uppercase tracking-wider text-slate-400 block mb-1">TOTAL DISTANCE</span>
+            <span className="text-xl font-black font-mono text-white">{selectedRoute.distance_km}</span>
+            <span className="text-xs text-slate-400 ml-1 font-mono">km</span>
           </div>
-          <div className="card-subtle text-center border-cyan-950/80 bg-slate-950/70">
-            <span className="label-cap block mb-1 text-slate-400">EST. TRAVEL TIME</span>
-            <span className="stat-val text-white">{Math.round(selectedRoute.duration_min)}</span>
-            <span className="text-[11px] text-cyan-400 ml-1 font-mono font-bold">min</span>
+          <div className="bg-[#0e1219] border border-[#1e2535] rounded-xl p-3 text-center">
+            <span className="text-[10px] font-mono uppercase tracking-wider text-slate-400 block mb-1">TRAVEL TIME</span>
+            <span className="text-xl font-black font-mono text-white">{Math.round(selectedRoute.duration_min)}</span>
+            <span className="text-xs text-slate-400 ml-1 font-mono">min</span>
           </div>
-          <div className="card-subtle text-center border-cyan-950/80 bg-slate-950/70">
-            <span className="label-cap block mb-1 text-slate-400">P50 EXPECTED</span>
-            <span className="stat-val text-emerald-400">{energy.total_kwh_p50.toFixed(1)}</span>
-            <span className="text-[11px] text-emerald-400 ml-1 font-mono font-bold">kWh</span>
+          <div className="bg-[#0e1219] border border-[#1e2535] rounded-xl p-3 text-center">
+            <span className="text-[10px] font-mono uppercase tracking-wider text-slate-400 block mb-1">P50 EXPECTED</span>
+            <span className="text-xl font-black font-mono text-teal-400">{energy.total_kwh_p50.toFixed(1)}</span>
+            <span className="text-xs text-teal-400 ml-1 font-mono">kWh</span>
           </div>
-          <div className="card-subtle text-center border-cyan-950/80 bg-slate-950/70">
-            <span className="label-cap block mb-1 text-slate-400">P90 CONSERVATIVE</span>
-            <span className="stat-val text-amber-400">{energy.total_kwh_p90.toFixed(1)}</span>
-            <span className="text-[11px] text-amber-400 ml-1 font-mono font-bold">kWh</span>
+          <div className="bg-[#0e1219] border border-[#1e2535] rounded-xl p-3 text-center">
+            <span className="text-[10px] font-mono uppercase tracking-wider text-slate-400 block mb-1">P90 CONSERVATIVE</span>
+            <span className="text-xl font-black font-mono text-orange-400">{energy.total_kwh_p90.toFixed(1)}</span>
+            <span className="text-xs text-orange-400 ml-1 font-mono">kWh</span>
+            <span className="block text-[8px] text-slate-500 font-mono mt-0.5">MODEL_BASED_P90_ESTIMATE</span>
           </div>
         </div>
 
         {/* Battery Arrival Gauge */}
-        <div className="bg-slate-950/80 rounded-xl p-3.5 border border-cyan-900/40 mb-4">
+        <div className="bg-[#0e1219] rounded-xl p-3.5 border border-[#1e2535] mb-3.5">
           <div className="flex justify-between items-center mb-2.5">
-            <div className="flex items-center gap-1.5 text-xs font-mono font-bold text-cyan-300">
-              <Battery size={15} className="text-cyan-400 pulse-charging" />
-              ARRIVAL BATTERY SOC TELEMETRY
+            <div className="flex items-center gap-1.5 text-xs font-mono font-bold text-slate-200">
+              <Battery size={14} className="text-orange-400" />
+              ARRIVAL BATTERY SOC PREDICTION
             </div>
             <div className="text-xs font-mono text-slate-400">
               MIN RESERVE: <span className="text-rose-400 font-bold">{vehicle.soc_reserve_pct}%</span>
             </div>
           </div>
 
-          <div className="space-y-3">
+          <div className="space-y-2.5">
             {/* P50 Bar */}
             <div>
               <div className="flex justify-between text-xs mb-1 font-mono">
-                <span className="text-slate-400 text-[11px]">EXPECTED (P50) ARRIVAL STATE</span>
-                <span className="font-bold text-emerald-400">{energy.soc_final_p50_pct.toFixed(1)}%</span>
+                <span className="text-slate-400 text-[11px]">EXPECTED (P50) ARRIVAL</span>
+                <span className="font-bold text-teal-400">{energy.soc_final_p50_pct.toFixed(1)}%</span>
               </div>
-              <div className="h-2.5 bg-slate-900 rounded-full overflow-hidden p-0.5 border border-slate-800">
+              <div className="h-2 bg-[#171c28] rounded-full overflow-hidden p-0.5 border border-[#222938]">
                 <div 
-                  className="h-full rounded-full bg-gradient-to-r from-teal-500 via-emerald-400 to-cyan-300 transition-all duration-700 shadow-[0_0_8px_#10b981]" 
+                  className="h-full rounded-full bg-gradient-to-r from-teal-500 to-cyan-400 transition-all duration-700" 
                   style={{ width: `${Math.min(100, Math.max(0, energy.soc_final_p50_pct))}%` }} 
                 />
               </div>
@@ -303,12 +303,12 @@ export default function RouteResults({
             {/* P90 Bar */}
             <div>
               <div className="flex justify-between text-xs mb-1 font-mono">
-                <span className="text-slate-400 text-[11px]">CONSERVATIVE (P90) ARRIVAL STATE</span>
-                <span className="font-bold text-amber-400">{energy.soc_final_p90_pct.toFixed(1)}%</span>
+                <span className="text-slate-400 text-[11px]">CONSERVATIVE (P90) ARRIVAL</span>
+                <span className="font-bold text-orange-400">{energy.soc_final_p90_pct.toFixed(1)}%</span>
               </div>
-              <div className="h-2.5 bg-slate-900 rounded-full overflow-hidden p-0.5 border border-slate-800">
+              <div className="h-2 bg-[#171c28] rounded-full overflow-hidden p-0.5 border border-[#222938]">
                 <div 
-                  className="h-full rounded-full bg-gradient-to-r from-amber-500 via-orange-400 to-amber-300 transition-all duration-700 shadow-[0_0_8px_#f59e0b]" 
+                  className="h-full rounded-full bg-gradient-to-r from-orange-500 to-amber-400 transition-all duration-700" 
                   style={{ width: `${Math.min(100, Math.max(0, energy.soc_final_p90_pct))}%` }} 
                 />
               </div>
@@ -316,19 +316,19 @@ export default function RouteResults({
           </div>
         </div>
 
-        {/* Battery Discharge Curve Chart */}
-        <div className="mt-2">
+        {/* Battery Discharge Curve Chart (Meitriya Style with Orange & Cyan) */}
+        <div className="mt-1">
           <div className="flex items-center justify-between mb-2">
-            <span className="label-cap flex items-center gap-1.5 text-cyan-300">
-              <Flame size={13} className="text-cyan-400" />
+            <span className="text-[11px] font-mono font-bold uppercase tracking-wider text-slate-300 flex items-center gap-1.5">
+              <Flame size={13} className="text-orange-400" />
               BATTERY SOC TRAJECTORY PROFILE (%)
             </span>
             <div className="flex items-center gap-3 text-[10px] text-slate-400 font-mono">
               <span className="flex items-center gap-1">
-                <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 inline-block shadow-[0_0_5px_#10b981]" /> P50
+                <span className="w-2.5 h-2.5 rounded-full bg-teal-400 inline-block" /> P50
               </span>
               <span className="flex items-center gap-1">
-                <span className="w-2.5 h-2.5 rounded-full bg-amber-400 inline-block shadow-[0_0_5px_#f59e0b]" /> P90
+                <span className="w-2.5 h-2.5 rounded-full bg-orange-400 inline-block" /> P90
               </span>
               <span className="flex items-center gap-1">
                 <span className="w-2.5 h-0.5 bg-rose-500 inline-block" /> Reserve ({vehicle.soc_reserve_pct}%)
@@ -336,17 +336,17 @@ export default function RouteResults({
             </div>
           </div>
 
-          <div className="h-44 w-full bg-slate-950/80 rounded-xl p-2 border border-cyan-950/60 shadow-inner">
+          <div className="h-44 w-full bg-[#0a0e14] rounded-xl p-2 border border-[#1e2535]">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={dischargeData} margin={{ top: 10, right: 15, left: -20, bottom: 0 }}>
                 <defs>
                   <linearGradient id="p50Grad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#00f0ff" stopOpacity={0.4}/>
-                    <stop offset="95%" stopColor="#10b981" stopOpacity={0.0}/>
+                    <stop offset="5%" stopColor="#14b8a6" stopOpacity={0.35}/>
+                    <stop offset="95%" stopColor="#14b8a6" stopOpacity={0.0}/>
                   </linearGradient>
                   <linearGradient id="p90Grad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.3}/>
-                    <stop offset="95%" stopColor="#f59e0b" stopOpacity={0.0}/>
+                    <stop offset="5%" stopColor="#f97316" stopOpacity={0.3}/>
+                    <stop offset="95%" stopColor="#f97316" stopOpacity={0.0}/>
                   </linearGradient>
                 </defs>
                 <XAxis 
@@ -360,7 +360,7 @@ export default function RouteResults({
                   unit="%" 
                 />
                 <Tooltip 
-                  contentStyle={{ backgroundColor: '#090e1a', borderColor: '#1e293b', borderRadius: '12px', fontSize: '11px', boxShadow: '0 10px 25px rgba(0,0,0,0.8)' }}
+                  contentStyle={{ backgroundColor: '#121620', borderColor: '#262f42', borderRadius: '12px', fontSize: '11px', boxShadow: '0 10px 25px rgba(0,0,0,0.8)' }}
                   labelStyle={{ color: '#cbd5e1', fontFamily: 'monospace' }}
                 />
                 <ReferenceLine 
@@ -373,8 +373,8 @@ export default function RouteResults({
                   type="monotone" 
                   dataKey="soc_p50" 
                   name="P50 SoC (%)" 
-                  stroke="#00f0ff" 
-                  strokeWidth={2.5} 
+                  stroke="#14b8a6" 
+                  strokeWidth={2.2} 
                   fillOpacity={1} 
                   fill="url(#p50Grad)" 
                 />
@@ -382,7 +382,7 @@ export default function RouteResults({
                   type="monotone" 
                   dataKey="soc_p90" 
                   name="P90 SoC (%)" 
-                  stroke="#f59e0b" 
+                  stroke="#f97316" 
                   strokeWidth={1.8} 
                   strokeDasharray="3 3" 
                   fillOpacity={1} 
@@ -393,15 +393,15 @@ export default function RouteResults({
           </div>
         </div>
 
-        {/* Planned Charging Stops with Interactive 1-Click Failure Simulation */}
+        {/* Planned Charging Stops with 1-Click Failure Simulation */}
         {selectedRoute.charging_stops.length > 0 && (
-          <div className="mt-4 pt-3.5 border-t border-cyan-900/40">
+          <div className="mt-4 pt-3.5 border-t border-[#1e2535]">
             <div className="flex items-center justify-between mb-2.5">
-              <span className="label-cap flex items-center gap-1.5 text-cyan-300">
-                <Zap size={13} className="text-amber-400" />
+              <span className="text-[11px] font-mono font-bold uppercase tracking-wider text-slate-300 flex items-center gap-1.5">
+                <Zap size={13} className="text-orange-400" />
                 REQUIRED CHARGING STOPS ({selectedRoute.charging_stops.length})
               </span>
-              <span className="text-[11px] text-slate-400 font-mono">
+              <span className="text-[10px] text-slate-400 font-mono">
                 Click button to simulate outage & reroute
               </span>
             </div>
@@ -414,28 +414,44 @@ export default function RouteResults({
                     key={i} 
                     className={`p-3 rounded-xl border transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
                       isDown 
-                        ? 'bg-rose-950/30 border-rose-800/50 opacity-75' 
-                        : 'bg-slate-950/70 border-cyan-950/70 hover:border-cyan-500/40'
+                        ? 'bg-rose-950/20 border-rose-800/40 opacity-75' 
+                        : 'bg-[#0e1219] border-[#1e2535] hover:border-[#2b3547]'
                     }`}
                   >
                     <div className="flex items-start gap-2.5">
-                      <div className={`p-2 rounded-lg mt-0.5 shrink-0 ${
-                        stop.charger.reliability_score >= 0.75 
-                          ? 'bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 shadow-[0_0_8px_rgba(6,182,212,0.2)]' 
-                          : 'bg-amber-500/10 text-amber-400 border border-amber-500/30'
-                      }`}>
+                      <div className="p-2 rounded-lg mt-0.5 shrink-0 bg-orange-500/10 text-orange-400 border border-orange-500/20">
                         <Zap size={16} />
                       </div>
                       <div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
                           <h4 className="text-sm font-bold text-white font-sans">{stop.charger.name}</h4>
-                          <span className="text-[10px] bg-slate-800 text-cyan-300 border border-slate-700 px-1.5 py-0.5 rounded font-mono">
+                          <span className="text-[10px] bg-[#1a2130] text-orange-400 border border-[#273244] px-1.5 py-0.5 rounded font-mono font-bold">
                             {stop.charger.max_power_kw} kW
                           </span>
+                          {stop.charger.status === 'VERIFIED_REAL' && (
+                            <span className="text-[10px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 px-1.5 py-0.5 rounded font-mono font-bold">
+                              VERIFIED REAL
+                            </span>
+                          )}
+                          {stop.charger.status === 'DEMO_SEED' && (
+                            <span className="text-[10px] bg-amber-500/20 text-amber-300 border border-amber-500/40 px-1.5 py-0.5 rounded font-mono font-bold">
+                              DEMO SEED (UNVERIFIED)
+                            </span>
+                          )}
+                          {(stop.charger.status === 'HYPOTHETICAL' || stop.charger.charger_id.startsWith('CHR_HYPO_')) && (
+                            <span className="text-[10px] bg-purple-500/20 text-purple-300 border border-purple-500/40 px-1.5 py-0.5 rounded font-mono font-bold">
+                              HYPOTHETICAL STOP
+                            </span>
+                          )}
+                          {(!stop.charger.status || stop.charger.status === 'UNKNOWN') && !stop.charger.charger_id.startsWith('CHR_HYPO_') && (
+                            <span className="text-[10px] bg-slate-700/40 text-slate-300 border border-slate-600/40 px-1.5 py-0.5 rounded font-mono font-bold">
+                              UNVERIFIED STATION
+                            </span>
+                          )}
                         </div>
-                        <p className="text-xs text-slate-400 mt-0.5 font-sans">
+                        <p className="text-xs text-slate-400 mt-0.5">
                           {stop.charger.operator} · Arrive {stop.arrive_soc_pct.toFixed(0)}% → Charge to {stop.depart_soc_pct.toFixed(0)}%
-                          · Duration: <span className="font-mono text-cyan-300 font-bold">{stop.charge_duration_min.toFixed(0)} min</span>
+                          · Duration: <span className="font-mono text-orange-400 font-bold">{stop.charge_duration_min.toFixed(0)} min</span>
                         </p>
                       </div>
                     </div>
@@ -451,13 +467,13 @@ export default function RouteResults({
                           playChargeZap();
                           onChargerToggle(stop.charger.charger_id, !isDown);
                         }}
-                        className={`text-xs px-3 py-1.5 rounded-lg font-mono font-semibold transition-all border ${
+                        className={`text-xs px-3 py-1.5 rounded-xl font-mono font-semibold transition-all border ${
                           isDown
-                            ? 'bg-emerald-600/30 text-emerald-300 border-emerald-500/50 hover:bg-emerald-600/40 shadow-[0_0_10px_rgba(16,185,129,0.3)]'
-                            : 'bg-rose-600/20 text-rose-300 border-rose-500/40 hover:bg-rose-600/30'
+                            ? 'bg-emerald-600/20 text-emerald-300 border-emerald-500/40 hover:bg-emerald-600/30'
+                            : 'bg-rose-600/15 text-rose-300 border-rose-500/30 hover:bg-rose-600/25'
                         }`}
                       >
-                        {isDown ? 'Restore Station' : '⚡ Simulate Outage'}
+                        {isDown ? '✓ Restore Station' : '⚡ Simulate Outage'}
                       </button>
                     </div>
                   </div>
@@ -469,14 +485,14 @@ export default function RouteResults({
 
         {/* Live Simulation Output Box (when triggered) */}
         {tripSimulation && (
-          <div className="mt-4 bg-emerald-950/40 border border-emerald-500/40 rounded-xl p-3.5">
+          <div className="mt-4 bg-[#0d1614] border border-emerald-500/30 rounded-xl p-3.5">
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">
-                <CheckCircle size={16} className="text-emerald-400" />
+                <CheckCircle size={15} className="text-emerald-400" />
                 <span className="text-xs font-mono font-bold text-white uppercase tracking-wider">
                   LIVE DRIVE TELEMETRY (SIMULATED)
                 </span>
-                <span className="text-[10px] bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded-full font-mono">
+                <span className="text-[10px] bg-emerald-500/15 text-emerald-300 px-2 py-0.5 rounded-full font-mono">
                   Trip #{tripSimulation.trip_id}
                 </span>
               </div>
@@ -488,15 +504,15 @@ export default function RouteResults({
             </div>
 
             <div className="grid grid-cols-3 gap-2 text-center text-xs mt-2">
-              <div className="bg-slate-900/90 p-2 rounded-lg border border-slate-800">
+              <div className="bg-[#121620] p-2 rounded-lg border border-[#1e2535]">
                 <span className="text-[10px] text-slate-400 block font-mono">ACTUAL DRAWN</span>
                 <span className="font-mono font-bold text-white text-sm">{tripSimulation.actual_kwh} kWh</span>
               </div>
-              <div className="bg-slate-900/90 p-2 rounded-lg border border-slate-800">
+              <div className="bg-[#121620] p-2 rounded-lg border border-[#1e2535]">
                 <span className="text-[10px] text-slate-400 block font-mono">PREDICTED P50</span>
                 <span className="font-mono font-bold text-slate-300 text-sm">{tripSimulation.predicted_kwh_p50} kWh</span>
               </div>
-              <div className="bg-slate-900/90 p-2 rounded-lg border border-slate-800">
+              <div className="bg-[#121620] p-2 rounded-lg border border-[#1e2535]">
                 <span className="text-[10px] text-slate-400 block font-mono">FINAL BATTERY</span>
                 <span className="font-mono font-bold text-emerald-400 text-sm">{tripSimulation.soc_final_pct}%</span>
               </div>
@@ -508,14 +524,14 @@ export default function RouteResults({
         )}
 
         {/* Collapsible Segment Energy Breakdown */}
-        <div className="mt-4 pt-3.5 border-t border-cyan-900/40">
+        <div className="mt-4 pt-3.5 border-t border-[#1e2535]">
           <button
             type="button"
             onClick={() => {
               playCockpitClick();
               setShowSegmentDetails(v => !v);
             }}
-            className="flex items-center gap-1.5 text-xs font-mono font-bold text-cyan-300 hover:text-white transition-colors w-full"
+            className="flex items-center gap-1.5 text-xs font-mono font-medium text-slate-300 hover:text-white transition-colors w-full"
           >
             {showSegmentDetails ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
             INSPECT SEGMENT FORCES & TERRAIN BREAKDOWN ({energy.segments.length} SEGMENTS)
@@ -523,21 +539,21 @@ export default function RouteResults({
 
           {showSegmentDetails && (
             <div className="mt-3">
-              <p className="text-[11px] text-slate-400 mb-2 font-sans">
+              <p className="text-[11px] text-slate-400 mb-2">
                 Forces breakdown per road segment in kWh (aerodynamics, rolling resistance, uphill gradients, and AC aux load):
               </p>
-              <div className="h-44 w-full bg-slate-950/80 rounded-xl p-2 border border-cyan-950/60">
+              <div className="h-44 w-full bg-[#0a0e14] rounded-xl p-2 border border-[#1e2535]">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={segmentEnergyData} margin={{ top: 5, right: 10, bottom: 5, left: -20 }}>
                     <XAxis dataKey="name" tick={{ fontSize: 9, fill: '#64748b' }} />
                     <YAxis tick={{ fontSize: 9, fill: '#64748b' }} unit="kWh" />
                     <Tooltip 
-                      contentStyle={{ backgroundColor: '#090e1a', borderColor: '#1e293b', borderRadius: '8px', fontSize: '11px' }} 
+                      contentStyle={{ backgroundColor: '#121620', borderColor: '#262f42', borderRadius: '8px', fontSize: '11px' }} 
                       labelStyle={{ color: '#cbd5e1' }}
                     />
-                    <Bar dataKey="rolling" name="Rolling Force" stackId="a" fill="#06b6d4" />
+                    <Bar dataKey="rolling" name="Rolling Force" stackId="a" fill="#0284c7" />
                     <Bar dataKey="aero" name="Aero Drag" stackId="a" fill="#3b82f6" />
-                    <Bar dataKey="gradient" name="Ghats / Elevation" stackId="a" fill="#f59e0b" />
+                    <Bar dataKey="gradient" name="Ghats / Elevation" stackId="a" fill="#f97316" />
                     <Bar dataKey="aux" name="AC Auxiliary" stackId="a" fill="#10b981" />
                   </BarChart>
                 </ResponsiveContainer>
@@ -547,12 +563,12 @@ export default function RouteResults({
         </div>
 
         {/* Model Narrative Explanation */}
-        <div className="mt-4 bg-slate-950/80 rounded-xl p-3 border border-cyan-950/60">
-          <div className="flex items-center gap-1.5 mb-1 text-cyan-300 text-xs font-mono font-bold">
-            <CornerDownRight size={13} className="text-cyan-400" />
+        <div className="mt-4 bg-[#0e1219] rounded-xl p-3 border border-[#1e2535]">
+          <div className="flex items-center gap-1.5 mb-1 text-orange-400 text-xs font-mono font-bold">
+            <CornerDownRight size={13} className="text-orange-400" />
             EXPLAINABILITY & ROUTE STRATEGY ASSESSMENT:
           </div>
-          <p className="text-xs text-slate-300 leading-relaxed font-sans">
+          <p className="text-xs text-slate-300 leading-relaxed">
             {selectedRoute.explanation}
           </p>
         </div>

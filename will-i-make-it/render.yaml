@@ -18,3 +18,11 @@ services:
         sync: false
       - key: SARVAM_API_KEY
         sync: false
+      - key: NEO4J_ENABLED
+        value: "false"
+      - key: SARVAM_ENABLED
+        value: "false"
+      - key: OPEN_CHARGE_MAP_API_KEY
+        sync: false
+      - key: BEE_EV_YATRA_API_KEY
+        sync: false

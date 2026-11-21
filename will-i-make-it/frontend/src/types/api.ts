@@ -47,6 +47,7 @@ export interface EnergyPredictResponse {
   segments: SegmentEnergyResult[];
   assumptions: string[];
   uncertainty_method: string;
+  uncertainty_disclosure?: string;
   data_disclaimer: string;
 }
 
@@ -64,6 +65,10 @@ export interface Charger {
   address?: string;
   total_reports?: number;
   _distance_km?: number;
+  status?: string;
+  data_source?: string;
+  verification_source?: string;
+  last_verified_at?: string;
 }
 
 export interface ChargingStop {
@@ -72,6 +77,7 @@ export interface ChargingStop {
   depart_soc_pct: number;
   charge_duration_min: number;
   charge_energy_kwh: number;
+  charge_notes?: string;
 }
 
 export interface RouteOption {
@@ -88,6 +94,22 @@ export interface RouteOption {
   feasibility_margin_kwh: number;
   explanation: string;
   road_geometry?: [number, number][];
+  feasibility_status?:
+    | 'WILL_MAKE_IT'
+    | 'SIMULATED_WITH_DEMO_INFRASTRUCTURE'
+    | 'CONDITIONAL_INFRASTRUCTURE_REQUIRED'
+    | 'LOW_RESERVE'
+    | 'UNCERTAIN'
+    | 'WILL_NOT_MAKE_IT'
+    | 'SIMULATION_ERROR';
+  is_energy_feasible?: boolean;
+  all_chargers_reachable?: boolean;
+  infrastructure_status?: string;
+  overall_confidence?: string;
+  max_battery_temp_c?: number;
+  min_battery_temp_c?: number;
+  was_thermally_derated?: boolean;
+  total_btms_energy_kwh?: number;
 }
 
 export interface RoutePlanResponse {

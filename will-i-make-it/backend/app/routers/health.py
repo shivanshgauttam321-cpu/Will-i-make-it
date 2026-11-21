@@ -21,3 +21,10 @@ def health_check():
             "Not validated against real-world Indian EV drive data."
         ),
     }
+
+
+@router.get("/providers/status")
+def providers_status():
+    """Return health, licensing, and provenance status of all integrated data providers."""
+    from app.services.provenance_service import ProvenanceService
+    return ProvenanceService.get_providers_inventory()

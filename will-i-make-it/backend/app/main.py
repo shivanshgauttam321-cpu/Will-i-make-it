@@ -13,7 +13,7 @@ load_dotenv()
 
 from app.routers import health, energy, routes, chargers, trips, sarvam
 from app.services.charger_service import init_db
-from app.services.neo4j_service import get_driver, seed_graph
+from app.services.neo4j_service import is_enabled, get_driver, seed_graph, close_driver
 
 
 @asynccontextmanager
@@ -23,20 +23,24 @@ async def lifespan(app: FastAPI):
     init_db()
     print("[Startup] SQLite ready.")
 
-    if os.environ.get("NEO4J_URI"):
-        print("[Startup] Neo4j URI found — attempting connection...")
+    if is_enabled():
+        print("[Startup] Neo4j is enabled (NEO4J_ENABLED=true) — attempting connection...")
         driver = get_driver()
         if driver:
-            print("[Startup] Neo4j connected. Seeding graph...")
-            seed_graph()
+            if os.environ.get("NEO4J_AUTO_SEED", "false").strip().lower() in ("true", "1", "yes"):
+                print("[Startup] Neo4j connected. Seeding graph per NEO4J_AUTO_SEED...")
+                seed_graph()
+            else:
+                print("[Startup] Neo4j connected. Automatic graph seeding disabled (NEO4J_AUTO_SEED is not true).")
         else:
             print("[Startup] Neo4j connection failed. Running in demo fallback mode.")
     else:
-        print("[Startup] NEO4J_URI not set — running in demo fallback mode (no Neo4j).")
+        print("[Startup] Neo4j is disabled by default (NEO4J_ENABLED is false) — running in demo mode.")
 
     yield
     # Shutdown
     print("[Shutdown] Cleaning up...")
+    close_driver()
 
 
 app = FastAPI(
@@ -52,19 +56,21 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# CORS — allow frontend dev and production deployments
+# CORS — strict allowlist, credentials enabled without wildcard '*'
+default_origins = [
+    "http://localhost:5173",
+    "http://localhost:3000",
+    "http://127.0.0.1:5173",
+    "https://will-i-make-it.vercel.app",
+    "https://will-i-make-it-one.vercel.app",
+    "https://will-i-make-l6tim64aw-shivansh-574f.vercel.app",
+]
+custom_origins = [o.strip() for o in os.environ.get("CORS_ALLOWED_ORIGINS", "").split(",") if o.strip()]
+allowed_origins = list(dict.fromkeys(default_origins + custom_origins))
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",
-        "http://localhost:3000",
-        "http://127.0.0.1:5173",
-        "https://will-i-make-it.vercel.app",
-        "http://localhost:5173",
-        "https://will-i-make-it-one.vercel.app",
-        "https://will-i-make-l6tim64aw-shivansh-574f.vercel.app",
-        "*",  # Allow cross-origin requests from deployed frontend (e.g. Vercel, Render)
-    ],
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 180" fill="none">
+  <!-- Subtle circular grid -->
+  <circle cx="120" cy="90" r="70" stroke="#1c2333" stroke-width="1.5" stroke-dasharray="4 4"/>
+  <circle cx="120" cy="90" r="45" stroke="#1c2333" stroke-width="1.5"/>
+  <circle cx="120" cy="90" r="20" stroke="#262f42" stroke-width="1.5"/>
+  
+  <!-- Curved Route Line -->
+  <path d="M55 125 C75 75 165 145 185 55" stroke="#f97316" stroke-width="3" stroke-linecap="round" stroke-dasharray="6 6"/>
+  
+  <!-- Origin Point A -->
+  <circle cx="55" cy="125" r="9" fill="#06b6d4" stroke="#ffffff" stroke-width="2"/>
+  <text x="55" y="128" fill="#ffffff" font-size="8" font-family="sans-serif" font-weight="bold" text-anchor="middle">A</text>
+  
+  <!-- Destination Point B -->
+  <circle cx="185" cy="55" r="9" fill="#f97316" stroke="#ffffff" stroke-width="2"/>
+  <text x="185" y="58" fill="#ffffff" font-size="8" font-family="sans-serif" font-weight="bold" text-anchor="middle">B</text>
+</svg>

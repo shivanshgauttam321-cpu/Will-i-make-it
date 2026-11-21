@@ -28,7 +28,11 @@ from __future__ import annotations
 import os
 import uuid
 import math
+import logging
+from datetime import datetime
 from typing import List, Dict, Optional, Tuple, Any
+
+logger = logging.getLogger(__name__)
 
 from app.models.schemas import (
     VehicleProfile, RouteOption, ChargingStop, RoutePlanRequest,
@@ -49,8 +53,9 @@ CHARGE_TO_SOC = 80.0           # standard DC fast-charge taper limit
 
 
 def _neo4j_available() -> bool:
+    from app.services.neo4j_service import is_enabled
     uri = os.environ.get("NEO4J_URI", "")
-    return bool(uri and uri.strip())
+    return is_enabled() and bool(uri and uri.strip())
 
 
 def _compute_charge_time_min(
@@ -73,6 +78,38 @@ def _charger_compatible(charger: Dict, vehicle: VehicleProfile) -> bool:
     return any(ct in vehicle_connectors for ct in charger.get("connector_types", []))
 
 
+def _compute_charger_chainage(charger: Dict, segments: List[RouteSegment], road_geometry: Optional[List[List[float]]] = None) -> float:
+    """
+    Compute projected chainage (distance along route from origin in km) for a charger.
+    Prevents dependence on dictionary insertion order and ensures strict corridor progression.
+    """
+    clat = float(charger.get("lat", 0.0))
+    clng = float(charger.get("lng", 0.0))
+
+    if road_geometry and len(road_geometry) >= 2:
+        running_dist_km = 0.0
+        best_pt_dist = float("inf")
+        best_chainage_km = 0.0
+        for i in range(len(road_geometry) - 1):
+            p1 = road_geometry[i]
+            p2 = road_geometry[i + 1]
+            seg_len = _haversine_km(p1[0], p1[1], p2[0], p2[1])
+            d_p1 = _haversine_km(clat, clng, p1[0], p1[1])
+            if d_p1 < best_pt_dist:
+                best_pt_dist = d_p1
+                best_chainage_km = running_dist_km
+            running_dist_km += seg_len
+        return best_chainage_km
+
+    # Approximate via segment sequence
+    cum = 0.0
+    best_dist = float("inf")
+    best_chainage = 0.0
+    for s in segments:
+        cum += s.distance_km
+    return cum * 0.5
+
+
 def plan_segments_and_chargers(
     route_id: str,
     label: str,
@@ -86,6 +123,7 @@ def plan_segments_and_chargers(
     disabled_ids: List[str],
     risk_aware: bool,
     road_geometry: Optional[List[List[float]]] = None,
+    as_of: Optional[datetime] = None,
 ) -> RouteOption:
     """
     Core EV routing solver: evaluates directed road segments, enforces battery
@@ -102,7 +140,7 @@ def plan_segments_and_chargers(
         if not _charger_compatible(c, vehicle):
             incompatible_charger_count += 1
             continue
-        rel = compute_reliability(cid)
+        rel = compute_reliability(cid, as_of=as_of)
         if risk_aware:
             if rel["score"] < RISK_AWARE_MIN_RELIABILITY:
                 continue
@@ -110,90 +148,57 @@ def plan_segments_and_chargers(
                 continue
         valid_chargers.append({**c, **rel})
 
-    # Sort chargers by distance from route origin (corridor order)
-    if charger_candidates:
-        origin_lat = segments[0].distance_km if segments else 0.0
-        # Preserve route progression order
-        order_map = {c.get("charger_id"): idx for idx, c in enumerate(charger_candidates)}
-        valid_chargers.sort(key=lambda x: order_map.get(x.get("charger_id"), 999))
+    # Sort chargers strictly by projected route chainage (corridor progression order)
+    if valid_chargers:
+        for c in valid_chargers:
+            c["_chainage_km"] = _compute_charger_chainage(c, segments, road_geometry)
+        valid_chargers.sort(key=lambda x: x["_chainage_km"])
 
-    # Segment-by-segment battery feasibility simulation
+    # Boundary verification: starting SOC must be within [0.0, 100.0]%
+    if not math.isfinite(vehicle.soc_start_pct) or not (0.0 <= vehicle.soc_start_pct <= 100.0):
+        raise ValueError(f"Starting SOC {vehicle.soc_start_pct} must be finite and within [0.0, 100.0]%.")
+
     soc_p50 = float(vehicle.soc_start_pct)
     soc_p90 = float(vehicle.soc_start_pct)
     threshold = vehicle.soc_reserve_pct + CHARGE_BUFFER_SOC
 
-    charging_stops: List[ChargingStop] = []
-    total_p50_kwh = 0.0
-    total_p90_kwh = 0.0
-    seg_results = []
+    scheduled_stops: List[Dict[str, Any]] = []
     used_charger_ids = set()
+    seg_results = []
+    running_dist_km = 0.0
 
-    battery_exhausted = False
-    exhausted_segment_name = ""
-    reserve_breached_on_route = False
-
-    for seg in segments:
+    # Pass 1: Walk segments to schedule charging stops where battery reserve is threatened
+    for seg_idx, seg in enumerate(segments):
         res, soc_after_p50 = predict_segment(seg, vehicle, ambient_c, confidence, soc_p50)
         seg_results.append(res)
 
-        total_p50_kwh += res.net_kwh
-        total_p90_kwh += res.net_kwh_p90
-
-        # P90 conservative SoC deduction
         p90_soc_drop = (res.net_kwh_p90 / vehicle.battery_capacity_kwh) * 100.0
         soc_after_p90 = soc_p90 - p90_soc_drop
+        running_dist_km += seg.distance_km
 
-        # Check for battery exhaustion before reaching next point
-        if soc_after_p50 <= 0.0 or soc_p50 <= 0.0:
-            battery_exhausted = True
-            if not exhausted_segment_name:
-                exhausted_segment_name = seg.name or seg.segment_id
-
-        # Trigger charging stop if SoC dips below threshold
-        if (soc_after_p90 < threshold or soc_after_p50 < threshold) and not battery_exhausted:
+        # If projected SOC threatens reserve or cutoff, schedule an intermediate stop
+        if (soc_after_p90 < threshold or soc_after_p50 < threshold) and (soc_after_p50 > 2.0 or soc_p50 > 2.0):
             best_charger = None
             for c in valid_chargers:
                 if c["charger_id"] not in used_charger_ids:
+                    # Charger must be reasonably aligned with corridor chainage
                     best_charger = c
                     break
 
             if best_charger:
-                arrive_soc = max(0.0, soc_after_p90)
-                if arrive_soc < vehicle.soc_reserve_pct:
-                    reserve_breached_on_route = True
-
-                charge_to = min(CHARGE_TO_SOC, 100.0)
-                dur, added = _compute_charge_time_min(
-                    arrive_soc, charge_to, vehicle.battery_capacity_kwh, best_charger["max_power_kw"]
-                )
-
-                charger_obj = Charger(
-                    charger_id=best_charger["charger_id"],
-                    name=best_charger["name"],
-                    lat=best_charger["lat"],
-                    lng=best_charger["lng"],
-                    connector_types=[
-                        ConnectorType(ct) for ct in best_charger.get("connector_types", [])
-                        if ct in [c.value for c in ConnectorType]
-                    ],
-                    max_power_kw=best_charger["max_power_kw"],
-                    operator=best_charger["operator"],
-                    reliability_score=best_charger.get("score", best_charger.get("reliability_score", 0.5)),
-                    reliability_freshness_hours=best_charger.get("freshness_hours"),
-                    is_operational=best_charger.get("is_operational"),
-                    address=best_charger.get("address"),
-                )
-                charging_stops.append(ChargingStop(
-                    charger=charger_obj,
-                    arrive_soc_pct=round(arrive_soc, 2),
-                    depart_soc_pct=round(charge_to, 2),
-                    charge_duration_min=dur,
-                    charge_energy_kwh=added,
-                ))
+                target_soc = min(CHARGE_TO_SOC, 100.0)
+                scheduled_stops.append({
+                    "after_segment_index": seg_idx,
+                    "charger_id": best_charger["charger_id"],
+                    "charger_name": best_charger.get("name", best_charger["charger_id"]),
+                    "charger_status": best_charger.get("status", "DEMO_SEED"),
+                    "max_power_kw": float(best_charger.get("max_power_kw", 50.0)),
+                    "target_soc_pct": target_soc,
+                    "charger_dict": best_charger,
+                })
                 used_charger_ids.add(best_charger["charger_id"])
-
-                soc_p50 = charge_to
-                soc_p90 = charge_to
+                soc_p50 = target_soc
+                soc_p90 = target_soc
             else:
                 soc_p50 = max(0.0, soc_after_p50)
                 soc_p90 = soc_after_p90
@@ -201,18 +206,143 @@ def plan_segments_and_chargers(
             soc_p50 = max(0.0, soc_after_p50)
             soc_p90 = soc_after_p90
 
-    # Arrival SoC calculations
-    soc_final_p50 = max(0.0, min(100.0, soc_p50))
-    soc_final_p90 = max(-50.0, min(100.0, soc_p90))
+    # Duration baseline
+    segment_duration = sum(s.distance_km / max(1.0, s.avg_speed_kmh) * 60 for s in segments)
+    total_duration = segment_duration
 
-    # Feasibility evaluation:
-    # 1. No battery exhaustion on any segment
-    # 2. P90 arrival SoC >= vehicle reserve
-    arrival_reserve_violation = (soc_final_p90 < vehicle.soc_reserve_pct)
-    feasible = (not battery_exhausted) and (not arrival_reserve_violation)
+    # Authoritative Continuous High-Fidelity Simulation (C1.3 + C2.1 + C3 1-RC + C4 Thermal BTMS)
+    try:
+        from app.services.energy.journey_simulator import (
+            simulate_journey,
+            simulate_multistop_journey,
+            FeasibilityStatus,
+            MIN_OPERATING_SOC_PCT,
+        )
 
-    # Feasibility margin in kWh (negative if reserve violated)
-    margin_kwh = (soc_final_p90 - vehicle.soc_reserve_pct) / 100.0 * vehicle.battery_capacity_kwh
+        if not scheduled_stops:
+            # Direct uncharged journey simulation
+            hf_summary = simulate_journey(
+                segments=segments,
+                vehicle_mass_kg=vehicle.vehicle_mass_kg + vehicle.payload_kg,
+                frontal_area_m2=vehicle.frontal_area_m2,
+                drag_coeff=vehicle.drag_coefficient,
+                rolling_res_coeff=vehicle.rolling_resistance,
+                battery_capacity_kwh=vehicle.battery_capacity_kwh,
+                soc_start_pct=vehicle.soc_start_pct,
+                soc_reserve_pct=vehicle.soc_reserve_pct,
+                aux_power_kw=vehicle.ac_load_kw,
+                ambient_temp_c=ambient_c,
+                confidence_target=confidence,
+            )
+            feasibility_status_val = hf_summary.feasibility_status.value
+            total_p50_kwh = hf_summary.total_net_battery_kwh_p50
+            total_p90_kwh = hf_summary.total_net_battery_kwh_p90
+            soc_final_p50 = hf_summary.final_soc_p50_pct
+            soc_final_p90 = hf_summary.final_soc_p90_pct
+            margin_kwh = hf_summary.feasibility_margin_kwh
+            feasible = (hf_summary.feasibility_status == FeasibilityStatus.WILL_MAKE_IT)
+            is_energy_feasible = feasible
+            all_chargers_reachable = True
+            infrastructure_status = "NONE_REQUIRED"
+            overall_confidence = "MODEL_BASED_P90_ESTIMATE"
+            max_bat_temp = hf_summary.max_pack_temp_c
+            min_bat_temp = hf_summary.min_pack_temp_c
+            thermally_derated = hf_summary.was_derated
+            total_btms_kwh = hf_summary.total_btms_energy_kwh
+            charging_stops = []
+            expl = " ".join(hf_summary.explanations)
+            if not feasible and "INFEASIBLE" not in expl:
+                expl = f"INFEASIBLE: {expl}"
+            if not feasible and incompatible_charger_count > 0:
+                expl += f" ({incompatible_charger_count} corridor charger(s) skipped due to connector incompatibility)"
+        else:
+            # Authoritative multi-stop continuous journey simulation
+            hf_ms_summary = simulate_multistop_journey(
+                segments=segments,
+                scheduled_stops=scheduled_stops,
+                vehicle_mass_kg=vehicle.vehicle_mass_kg + vehicle.payload_kg,
+                frontal_area_m2=vehicle.frontal_area_m2,
+                drag_coeff=vehicle.drag_coefficient,
+                rolling_res_coeff=vehicle.rolling_resistance,
+                battery_capacity_kwh=vehicle.battery_capacity_kwh,
+                soc_start_pct=vehicle.soc_start_pct,
+                soc_reserve_pct=vehicle.soc_reserve_pct,
+                aux_power_kw=vehicle.ac_load_kw,
+                ambient_temp_c=ambient_c,
+                confidence_target=confidence,
+            )
+            feasibility_status_val = hf_ms_summary.feasibility_status.value
+            total_p50_kwh = hf_ms_summary.total_net_battery_kwh_p50
+            total_p90_kwh = hf_ms_summary.total_net_battery_kwh_p90
+            soc_final_p50 = hf_ms_summary.final_soc_p50_pct
+            soc_final_p90 = hf_ms_summary.final_soc_p90_pct
+            margin_kwh = hf_ms_summary.feasibility_margin_kwh
+            feasible = hf_ms_summary.is_energy_feasible
+            is_energy_feasible = hf_ms_summary.is_energy_feasible
+            all_chargers_reachable = hf_ms_summary.all_chargers_reachable
+            infrastructure_status = hf_ms_summary.infrastructure_status
+            overall_confidence = hf_ms_summary.overall_confidence
+            max_bat_temp = hf_ms_summary.max_pack_temp_c
+            min_bat_temp = hf_ms_summary.min_pack_temp_c
+            thermally_derated = hf_ms_summary.was_derated
+            total_btms_kwh = hf_ms_summary.total_btms_energy_kwh
+            total_duration = hf_ms_summary.total_journey_duration_min
+            expl = " ".join(hf_ms_summary.explanations)
+            if not feasible and "INFEASIBLE" not in expl:
+                expl = f"INFEASIBLE: {expl}"
+
+            charging_stops = []
+            for ev in hf_ms_summary.charging_events:
+                meta = next((s for s in scheduled_stops if s["charger_id"] == ev.charger_id), {})
+                c_dict = meta.get("charger_dict", {})
+                charger_obj = Charger(
+                    charger_id=ev.charger_id,
+                    name=ev.charger_name,
+                    lat=c_dict.get("lat", 0.0),
+                    lng=c_dict.get("lng", 0.0),
+                    connector_types=[
+                        ConnectorType(ct) for ct in c_dict.get("connector_types", [])
+                        if ct in [c.value for c in ConnectorType]
+                    ],
+                    max_power_kw=c_dict.get("max_power_kw", ev.peak_charge_power_kw),
+                    operator=c_dict.get("operator", "Unknown"),
+                    reliability_score=c_dict.get("score", c_dict.get("reliability_score", 0.5)),
+                    reliability_freshness_hours=c_dict.get("freshness_hours"),
+                    is_operational=c_dict.get("is_operational"),
+                    address=c_dict.get("address"),
+                    status=ev.charger_status,
+                    data_source=c_dict.get("data_source", "SeedCatalog"),
+                    verification_source=c_dict.get("verification_source", "UNVERIFIED"),
+                )
+                charging_stops.append(ChargingStop(
+                    charger=charger_obj,
+                    arrive_soc_pct=ev.arrive_soc_pct,
+                    depart_soc_pct=ev.depart_soc_pct,
+                    charge_duration_min=ev.charge_duration_min,
+                    charge_energy_kwh=ev.energy_added_battery_kwh,
+                    charge_notes="; ".join(ev.notes),
+                ))
+    except Exception as e:
+        logger.error(f"Authoritative journey simulation failure: {e}", exc_info=True)
+        # SECTION 2 REQUIRED FIX: Silent legacy fallback PROHIBITED.
+        # Do not return WILL_MAKE_IT or disguise simulation exceptions behind legacy estimates.
+        feasibility_status_val = FeasibilityStatus.SIMULATION_ERROR.value
+        feasible = False
+        is_energy_feasible = False
+        all_chargers_reachable = False
+        infrastructure_status = "UNKNOWN"
+        overall_confidence = "ERROR"
+        max_bat_temp = ambient_c
+        min_bat_temp = ambient_c
+        thermally_derated = False
+        total_btms_kwh = 0.0
+        total_p50_kwh = 0.0
+        total_p90_kwh = 0.0
+        soc_final_p50 = 0.0
+        soc_final_p90 = 0.0
+        margin_kwh = 0.0
+        charging_stops = []
+        expl = f"CRITICAL SIMULATION ERROR: Authoritative physics simulator failed: {str(e)}. Fallback to unvalidated legacy models is prohibited."
 
     # Risk score calculation
     if not feasible:
@@ -227,46 +357,6 @@ def plan_segments_and_chargers(
         if risk_aware:
             risk = min(risk, 0.40)
 
-    # Duration calculations
-    segment_duration = sum(s.distance_km / max(1.0, s.avg_speed_kmh) * 60 for s in segments)
-    charge_duration = sum(cs.charge_duration_min for cs in charging_stops)
-    total_duration = segment_duration + charge_duration
-
-    # Honest explanation of feasibility, reserve, and charging
-    stop_names = [f"{cs.charger.name} (+{cs.charge_energy_kwh:.1f} kWh, {cs.charge_duration_min:.0f}m)" for cs in charging_stops]
-    
-    if feasible:
-        expl = (
-            f"Route covers {distance_km:.0f} km. Expected consumption: {total_p50_kwh:.1f} kWh (P90: {total_p90_kwh:.1f} kWh). "
-            f"Arrival SoC (P90): {soc_final_p90:.1f}% exceeds required reserve {vehicle.soc_reserve_pct:.0f}% "
-            f"(margin: +{margin_kwh:.1f} kWh). "
-        )
-        if stop_names:
-            expl += f"Charging stop(s): {'; '.join(stop_names)}. "
-        if risk_aware:
-            expl += "Risk-aware route filtered for high reliability (score ≥ 0.75, freshness < 48h)."
-    elif battery_exhausted:
-        expl = (
-            f"⚠️ INFEASIBLE: Battery exhausted (SoC reached 0.0%) on segment '{exhausted_segment_name}'. "
-            f"No reachable operational charging station before exhaustion. "
-            f"Start with higher SoC or select a vehicle with larger battery."
-        )
-    elif arrival_reserve_violation:
-        if incompatible_charger_count > 0 and not charging_stops:
-            expl = (
-                f"⚠️ INFEASIBLE: Arrival SoC (P90) is {soc_final_p90:.1f}%, violating the {vehicle.soc_reserve_pct:.0f}% reserve "
-                f"(margin: {margin_kwh:.1f} kWh). {incompatible_charger_count} corridor charger(s) skipped due to "
-                f"connector incompatibility with vehicle {[c.value for c in vehicle.connector_types]}."
-            )
-        else:
-            expl = (
-                f"⚠️ INFEASIBLE: Arrival SoC (P90) = {soc_final_p90:.1f}% violates required safety reserve "
-                f"{vehicle.soc_reserve_pct:.0f}%. Margin: {margin_kwh:.1f} kWh below reserve. "
-                f"No additional compatible, reliable charger available on this corridor."
-            )
-    else:
-        expl = f"⚠️ INFEASIBLE: Route constraints violated. Arrival SoC {soc_final_p90:.1f}%."
-
     energy_resp = EnergyPredictResponse(
         total_kwh_p50=round(total_p50_kwh, 3),
         total_kwh_p90=round(total_p90_kwh, 3),
@@ -274,9 +364,13 @@ def plan_segments_and_chargers(
         soc_final_p90_pct=round(max(0.0, soc_final_p90), 2),
         feasible=feasible,
         segments=seg_results,
-        assumptions=["See /api/energy/predict for full assumption list"],
-        uncertainty_method="Log-normal per segment (see energy_model.py)",
-        data_disclaimer="SIMULATED demo data. P90 coverage is an analytical model estimate, NOT validated against independent real-world EV telemetry.",
+        assumptions=["C1.3 Powertrain, C2.1 Regen, C3 1-RC Thevenin Battery, C4 BTMS Thermal"],
+        uncertainty_method="Log-normal quantile continuous integration (Acklam algorithm)",
+        data_disclaimer=(
+            "Validated physics-based powertrain and dynamic battery simulation. "
+            "P90 coverage is an analytical model estimate, NOT validated against independent real-world EV telemetry."
+        ),
+        uncertainty_disclosure="MODEL_BASED_P90_ESTIMATE",
     )
 
     route_id_out = f"{route_id}_{'ra' if risk_aware else 'fast'}"
@@ -295,6 +389,15 @@ def plan_segments_and_chargers(
         feasibility_margin_kwh=round(margin_kwh, 3),
         explanation=expl,
         road_geometry=road_geometry or [],
+        feasibility_status=feasibility_status_val,
+        is_energy_feasible=is_energy_feasible,
+        all_chargers_reachable=all_chargers_reachable,
+        infrastructure_status=infrastructure_status,
+        overall_confidence=overall_confidence,
+        max_battery_temp_c=max_bat_temp,
+        min_battery_temp_c=min_bat_temp,
+        was_thermally_derated=thermally_derated,
+        total_btms_energy_kwh=total_btms_kwh,
     )
 
 
@@ -305,6 +408,7 @@ def _plan_route_demo(
     confidence: float,
     disabled_ids: List[str],
     risk_aware: bool,
+    as_of: Optional[datetime] = None,
 ) -> Optional[RouteOption]:
     """Plan a route using demo data with battery feasibility checks."""
     route = get_demo_route(route_id)
@@ -329,6 +433,7 @@ def _plan_route_demo(
         disabled_ids=disabled_ids,
         risk_aware=risk_aware,
         road_geometry=road_geom,
+        as_of=as_of,
     )
 
 
@@ -355,14 +460,24 @@ def _match_demo_route(olat: float, olng: float, dlat: float, dlng: float, thresh
     return None
 
 
-def _plan_route_custom(req: RoutePlanRequest, risk_aware: bool) -> Optional[RouteOption]:
+_SHARED_ROUTE_PIPELINE = None
+
+
+def _get_route_pipeline():
+    global _SHARED_ROUTE_PIPELINE
+    if _SHARED_ROUTE_PIPELINE is None:
+        from app.services.route_pipeline import RouteEnrichmentPipeline
+        _SHARED_ROUTE_PIPELINE = RouteEnrichmentPipeline()
+    return _SHARED_ROUTE_PIPELINE
+
+
+def _plan_route_custom(req: RoutePlanRequest, risk_aware: bool, as_of: Optional[datetime] = None) -> Optional[RouteOption]:
     """
     Plan an EV-feasible route for ANY arbitrary origin and destination across India.
-    Fetches real road driving topology from OSRM, decomposes into road segments,
-    discovers corridor chargers, and evaluates full battery-constrained physics.
+    Uses RouteEnrichmentPipeline with real routing, analytical geometry resampling,
+    topographical DEM elevation enrichment, and contiguous physics segmentation.
     """
-    import urllib.request
-    import json
+    from app.domain.adapters import segment_domain_to_schema
 
     olat, olng = req.origin_lat, req.origin_lng
     dlat, dlng = req.dest_lat, req.dest_lng
@@ -375,92 +490,56 @@ def _plan_route_custom(req: RoutePlanRequest, risk_aware: bool) -> Optional[Rout
     distance_km = 0.0
     duration_min = 0.0
     road_geometry: List[List[float]] = []
-
-    # 1. Fetch live turn-by-turn road driving geometry from OSRM
-    osrm_url = f"https://router.project-osrm.org/route/v1/driving/{olng},{olat};{dlng},{dlat}?overview=full&geometries=geojson&steps=true"
-    try:
-        osrm_req = urllib.request.Request(osrm_url, headers={"User-Agent": "WillIMakeIt-EV/1.0"})
-        with urllib.request.urlopen(osrm_req, timeout=5.0) as resp:
-            data = json.loads(resp.read().decode())
-            if data.get("routes"):
-                r_data = data["routes"][0]
-                distance_km = round(r_data["distance"] / 1000.0, 1)
-                duration_min = round(r_data["duration"] / 60.0, 1)
-                raw_coords = r_data["geometry"]["coordinates"]
-                # Convert from [lng, lat] to [lat, lng]
-                lat_lng_pts = [[round(pt[1], 5), round(pt[0], 5)] for pt in raw_coords]
-                # Downsample if > 450 points to ensure silky rendering
-                if len(lat_lng_pts) > 450:
-                    step = len(lat_lng_pts) // 400 + 1
-                    downsampled = lat_lng_pts[::step]
-                    if downsampled[-1] != lat_lng_pts[-1]:
-                        downsampled.append(lat_lng_pts[-1])
-                    road_geometry = downsampled
-                else:
-                    road_geometry = lat_lng_pts
-    except Exception:
-        pass
-
-    # Fallback if OSRM unavailable or timed out:
-    if not road_geometry or distance_km <= 0.0:
-        h_dist = _haversine_km(olat, olng, dlat, dlng)
-        distance_km = round(max(5.0, h_dist * 1.25), 1)
-        duration_min = round(distance_km / 65.0 * 60.0, 1)
-        # Interpolate 25 road points
-        road_geometry = [
-            [round(olat + (dlat - olat) * (i / 24.0), 5), round(olng + (dlng - olng) * (i / 24.0), 5)]
-            for i in range(25)
-        ]
-
-    # 2. Decompose into logical road segments for physics-based EV consumption
-    num_segs = max(2, min(10, math.ceil(distance_km / 35.0)))
-    seg_dist = round(distance_km / num_segs, 1)
     segments: List[RouteSegment] = []
 
-    for i in range(num_segs):
-        is_first = (i == 0)
-        is_last = (i == num_segs - 1)
-        start_km = round(i * seg_dist, 1)
-        end_km = round(min(distance_km, (i + 1) * seg_dist), 1)
+    try:
+        pipeline = _get_route_pipeline()
+        enriched_domain = pipeline.enrich_route(
+            origin=(olat, olng),
+            destination=(dlat, dlng),
+            origin_name=origin_label,
+            dest_name=dest_label,
+            fetch_elevation=True,
+            fetch_weather=False,
+            target_segment_length_m=250.0,
+        )
+        distance_km = float(enriched_domain.distance.value or 0.0)
+        duration_min = float(enriched_domain.duration.value or 0.0)
+        road_geometry = [[pt[0], pt[1]] for pt in (enriched_domain.geometry or [])]
+        if len(road_geometry) > 450:
+            step = len(road_geometry) // 400 + 1
+            downsampled = road_geometry[::step]
+            if downsampled[-1] != road_geometry[-1]:
+                downsampled.append(road_geometry[-1])
+            road_geometry = downsampled
 
-        if is_first:
-            seg_name = f"{origin_label} Urban Exit (0–{int(end_km)} km)"
-            speed = 40.0
-            road_type = "urban"
-            grad = 0.0
-        elif is_last:
-            seg_name = f"Arrival into {dest_label} ({int(start_km)}–{int(end_km)} km)"
-            speed = 40.0
-            road_type = "urban"
-            grad = 0.0
-        else:
-            seg_name = f"Highway Corridor (Km {int(start_km)}–{int(end_km)})"
-            speed = 88.0
-            road_type = "highway"
-            # Natural subtle terrain gradient
-            grad = 0.4 if i % 2 == 1 else -0.3
+        segments = [segment_domain_to_schema(seg) for seg in enriched_domain.segments]
+    except Exception as e:
+        logger.warning(f"Route enrichment pipeline failed: {e}")
+        return None
 
-        segments.append(RouteSegment(
-            segment_id=f"CUST_{i+1}",
-            name=seg_name,
-            distance_km=round(end_km - start_km, 1),
-            avg_speed_kmh=speed,
-            gradient_pct=grad,
-            road_type=road_type
-        ))
+    if not road_geometry or not segments or distance_km <= 0.0:
+        return None
 
-    # 3. Discover corridor EV fast chargers
+    # 3. Discover corridor EV fast chargers using Composite Provider
     charger_candidates: List[Dict] = []
     seen_cids = set()
 
-    # Search existing pre-seeded chargers near the route polyline (within 35 km)
-    for cid, c in CHARGERS.items():
-        min_dist = min(_haversine_km(c["lat"], c["lng"], pt[0], pt[1]) for pt in road_geometry)
-        if min_dist <= 35.0:
-            charger_candidates.append(c)
-            seen_cids.add(cid)
+    try:
+        from app.services.chargers.composite_provider import CompositeChargerProvider
+        corridor_stations = CompositeChargerProvider().get_corridor_stations(road_geometry, buffer_km=35.0)
+        for st in corridor_stations:
+            charger_candidates.append(st.to_dict())
+            seen_cids.add(st.station_id)
+    except Exception as e:
+        logger.warning(f"Composite charger discovery fallback to static seed: {e}")
+        for cid, c in CHARGERS.items():
+            min_dist = min(_haversine_km(c["lat"], c["lng"], pt[0], pt[1]) for pt in road_geometry)
+            if min_dist <= 35.0:
+                charger_candidates.append(c)
+                seen_cids.add(cid)
 
-    # If the trip is long and corridor chargers are sparse, generate realistic highway EV hubs
+    # If the trip is long and corridor chargers are sparse, insert explicit hypothetical planning stops (RC2-CHG-01)
     if distance_km > 110.0 and len(charger_candidates) < math.ceil(distance_km / 100.0):
         interval_km = 85.0
         current_target = 80.0
@@ -468,20 +547,21 @@ def _plan_route_custom(req: RoutePlanRequest, risk_aware: bool) -> Optional[Rout
             frac = min(0.95, max(0.05, current_target / distance_km))
             idx = int(frac * (len(road_geometry) - 1))
             pt = road_geometry[idx]
-            hub_id = f"CHR_HWY_{int(current_target)}"
+            hub_id = f"CHR_HYPO_{int(current_target)}"
             if hub_id not in seen_cids:
                 charger_candidates.append({
                     "charger_id": hub_id,
-                    "name": f"Tata Power / Jio-bp EV Supercharger (Km {int(current_target)})",
+                    "name": f"Hypothetical Fast Charger (Km {int(current_target)}) — Unverified Stop",
                     "lat": pt[0],
                     "lng": pt[1],
                     "connector_types": ["CCS2", "Type2_AC"],
                     "max_power_kw": 60.0,
-                    "operator": "National EV Highway Network",
-                    "reliability_score": 0.90,
-                    "reliability_freshness_hours": 1.5,
-                    "is_operational": True,
-                    "address": f"Expressway Waypoint Amenity Plaza, Km {int(current_target)}",
+                    "operator": "Unverified / Planning Stop Only",
+                    "reliability_score": 0.0,
+                    "reliability_freshness_hours": None,
+                    "is_operational": None,
+                    "address": f"Synthetic Highway Corridor Waypoint at Km {int(current_target)} (NOT A CONFIRMED PHYSICAL CHARGER)",
+                    "status": "HYPOTHETICAL",
                 })
                 seen_cids.add(hub_id)
             current_target += interval_km
@@ -500,15 +580,17 @@ def _plan_route_custom(req: RoutePlanRequest, risk_aware: bool) -> Optional[Rout
         disabled_ids=req.disabled_charger_ids,
         risk_aware=risk_aware,
         road_geometry=road_geometry,
+        as_of=as_of,
     )
 
 
-def plan_routes(req: RoutePlanRequest) -> RoutePlanResponse:
+def plan_routes(req: RoutePlanRequest, as_of: Optional[datetime] = None) -> RoutePlanResponse:
     """
     Main routing entry point.
     Supports preset demo corridors AND arbitrary custom start/end destinations across India.
     Attempts Neo4j graph traversal first if configured; falls back cleanly with clear reporting.
     """
+    eval_as_of = as_of or req.reference_time
     neo4j_used = False
     neo4j_msg = "Neo4j not configured — using deterministic demo fallback."
 
@@ -519,9 +601,9 @@ def plan_routes(req: RoutePlanRequest) -> RoutePlanResponse:
             if result:
                 return result
             else:
-                neo4j_msg = "Neo4j query returned no graph path — falling back to deterministic demo routing."
+                neo4j_msg = "Neo4j query returned no graph path — using deterministic demo fallback."
         except Exception as e:
-            neo4j_msg = f"Neo4j connection error ({e}) — falling back to deterministic demo routing."
+            neo4j_msg = f"Neo4j connection error ({e}) — using deterministic demo fallback."
 
     is_custom_route = False
 
@@ -530,11 +612,13 @@ def plan_routes(req: RoutePlanRequest) -> RoutePlanResponse:
         route_id = req.demo_route_id
         fastest = _plan_route_demo(
             route_id, req.vehicle, req.ambient_temp_c,
-            req.confidence_target, req.disabled_charger_ids, risk_aware=False
+            req.confidence_target, req.disabled_charger_ids, risk_aware=False,
+            as_of=eval_as_of,
         )
         risk_aware = _plan_route_demo(
             route_id, req.vehicle, req.ambient_temp_c,
-            req.confidence_target, req.disabled_charger_ids, risk_aware=True
+            req.confidence_target, req.disabled_charger_ids, risk_aware=True,
+            as_of=eval_as_of,
         )
     else:
         # Check if coordinates closely match a preset demo route (within 12 km)
@@ -542,25 +626,34 @@ def plan_routes(req: RoutePlanRequest) -> RoutePlanResponse:
         if matched_demo and not req.origin_name:
             fastest = _plan_route_demo(
                 matched_demo, req.vehicle, req.ambient_temp_c,
-                req.confidence_target, req.disabled_charger_ids, risk_aware=False
+                req.confidence_target, req.disabled_charger_ids, risk_aware=False,
+                as_of=eval_as_of,
             )
             risk_aware = _plan_route_demo(
                 matched_demo, req.vehicle, req.ambient_temp_c,
-                req.confidence_target, req.disabled_charger_ids, risk_aware=True
+                req.confidence_target, req.disabled_charger_ids, risk_aware=True,
+                as_of=eval_as_of,
             )
         else:
             # Plan ANY arbitrary custom origin and destination
             is_custom_route = True
-            fastest = _plan_route_custom(req, risk_aware=False)
-            risk_aware = _plan_route_custom(req, risk_aware=True)
+            fastest = _plan_route_custom(req, risk_aware=False, as_of=eval_as_of)
+            risk_aware = _plan_route_custom(req, risk_aware=True, as_of=eval_as_of)
 
     if fastest is None:
+        if is_custom_route:
+            raise ValueError(
+                f"Routing unavailable: Unable to establish road-snapped route from ({req.origin_lat}, {req.origin_lng}) to "
+                f"({req.dest_lat}, {req.dest_lng}). External routing providers failed or coordinates unreachable."
+            )
         # Fallback: use first available demo route
         route_id = list(DEMO_ROUTES.keys())[0]
         fastest = _plan_route_demo(route_id, req.vehicle, req.ambient_temp_c,
-                                   req.confidence_target, req.disabled_charger_ids, False)
+                                   req.confidence_target, req.disabled_charger_ids, False,
+                                   as_of=eval_as_of)
         risk_aware = _plan_route_demo(route_id, req.vehicle, req.ambient_temp_c,
-                                      req.confidence_target, req.disabled_charger_ids, True)
+                                      req.confidence_target, req.disabled_charger_ids, True,
+                                      as_of=eval_as_of)
 
     # Charger failure scenario explanation
     failure_scenario = None

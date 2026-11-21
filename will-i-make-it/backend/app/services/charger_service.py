@@ -40,9 +40,31 @@ BETA_PRIOR = 1.0    # pseudo-failures
 HALF_LIFE_HOURS = 48.0   # decay half-life for old reports (aligned with 48h freshness window)
 STALE_THRESHOLD_HOURS = 72.0  # after this, freshness indicator is "stale"
 
+_reference_time_override: Optional[datetime] = None
+
+
+def set_reference_time(ref: Optional[datetime]) -> None:
+    """Set global reference time for deterministic testing/simulation. None restores live datetime.now()."""
+    global _reference_time_override
+    if ref is not None and ref.tzinfo is None:
+        ref = ref.replace(tzinfo=timezone.utc)
+    _reference_time_override = ref
+
+
+def get_reference_time() -> datetime:
+    """Return current UTC time or active test/simulation reference time."""
+    if _reference_time_override is not None:
+        return _reference_time_override
+    return datetime.now(timezone.utc)
+
+
+def get_db_path() -> str:
+    """Dynamically return the active SQLite database path."""
+    return os.environ.get("SQLITE_PATH", DB_PATH)
+
 
 def _get_db() -> sqlite3.Connection:
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(get_db_path())
     conn.row_factory = sqlite3.Row
     return conn
 
@@ -115,16 +137,17 @@ def init_db() -> None:
             INSERT INTO charger_reports (charger_id, success, connector, power_kw, notes, reported_at)
             SELECT ?, ?, ?, ?, ?, ?
             WHERE NOT EXISTS (
-                SELECT 1 FROM charger_reports WHERE charger_id = ? AND notes = ?
+                SELECT 1 FROM charger_reports WHERE charger_id = ? AND reported_at = ?
             )
-        """, (r[0], r[1], r[2], r[3], r[4], r[5], r[0], r[4]))
+        """, (r[0], r[1], r[2], r[3], r[4], r[5], r[0], r[5]))
     conn.commit()
     conn.close()
 
 
-def compute_reliability(charger_id: str) -> Dict:
+def compute_reliability(charger_id: str, as_of: Optional[datetime] = None) -> Dict:
     """
     Compute smoothed reliability score for a charger.
+    Accepts an optional reference time `as_of` for deterministic evaluation.
     Returns {'score': float, 'freshness_hours': float|None, 'total_reports': int}
     """
     conn = _get_db()
@@ -147,17 +170,30 @@ def compute_reliability(charger_id: str) -> Dict:
         return {"score": 0.5, "freshness_hours": None, "total_reports": 0,
                 "note": "No reports — status unknown (prior = 0.5)"}
 
-    now = datetime.now(timezone.utc)
+    if as_of is None:
+        eval_time = get_reference_time()
+    else:
+        eval_time = as_of if as_of.tzinfo is not None else as_of.replace(tzinfo=timezone.utc)
+
     weighted_successes = ALPHA_PRIOR
     weighted_total = ALPHA_PRIOR + BETA_PRIOR
 
     freshness_hours = None
     for row in rows:
-        try:
-            ts = datetime.fromisoformat(row["reported_at"].replace("Z", "+00:00"))
-            age_h = (now - ts).total_seconds() / 3600.0
-        except Exception:
+        reported_at = row["reported_at"]
+        if not reported_at:
             age_h = STALE_THRESHOLD_HOURS
+        else:
+            try:
+                clean_ts = reported_at.replace("Z", "+00:00")
+                ts = datetime.fromisoformat(clean_ts)
+                if ts.tzinfo is None:
+                    ts = ts.replace(tzinfo=timezone.utc)
+                age_h = (eval_time - ts).total_seconds() / 3600.0
+                if age_h < 0:
+                    age_h = 0.0  # clamp future observation to 0 age (weight 1.0)
+            except Exception:
+                age_h = STALE_THRESHOLD_HOURS
 
         if freshness_hours is None:
             freshness_hours = age_h
@@ -170,17 +206,21 @@ def compute_reliability(charger_id: str) -> Dict:
     score = weighted_successes / weighted_total
     return {
         "score": round(score, 3),
-        "freshness_hours": round(freshness_hours, 1) if freshness_hours else None,
+        "freshness_hours": round(freshness_hours, 1) if freshness_hours is not None else None,
         "total_reports": len(rows),
     }
 
 
 def add_report(charger_id: str, success: bool, connector: str,
                power_kw: Optional[float], notes: Optional[str],
-               reporter_id: Optional[str]) -> int:
+               reporter_id: Optional[str],
+               reported_at: Optional[str] = None) -> int:
     """Insert a new charger report. Returns row ID."""
     conn = _get_db()
-    now = datetime.now(timezone.utc).isoformat()
+    if reported_at is None:
+        now = datetime.now(timezone.utc).isoformat()
+    else:
+        now = reported_at
     cur = conn.execute(
         "INSERT INTO charger_reports (charger_id, success, connector, power_kw, notes, reporter_id, reported_at) "
         "VALUES (?, ?, ?, ?, ?, ?, ?)",

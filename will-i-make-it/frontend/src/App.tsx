@@ -1,11 +1,10 @@
 import { useState, useEffect } from 'react';
-import { 
-  Zap, Map as MapIcon, Battery, AlertTriangle, Info, 
-  RotateCcw, ShieldCheck, Activity, Database, Sparkles,
-  Volume2, VolumeX, Play
-} from 'lucide-react';
+import { AlertTriangle, Compass, CheckCircle2, ChevronRight, Zap, Flame } from 'lucide-react';
+import NavigationRail, { type ActiveView } from './components/NavigationRail';
+import HeaderBar from './components/HeaderBar';
 import TripPlanner, { INDIAN_EV_PRESETS } from './components/TripPlanner';
-import RouteResults from './components/RouteResults';
+import JourneyResultsPanel from './components/JourneyResultsPanel';
+import EnergyIntelligencePanel from './components/EnergyIntelligencePanel';
 import ChargerPanel from './components/ChargerPanel';
 import ExplainPanel from './components/ExplainPanel';
 import RouteMap from './components/RouteMap';
@@ -14,11 +13,14 @@ import { healthCheck, planRoute } from './utils/api';
 import { isAudioEnabled, setAudioEnabled, playCockpitClick } from './utils/audioService';
 import type { RoutePlanResponse, VehicleProfile } from './types/api';
 
-type Tab = 'planner' | 'chargers' | 'explain';
-
 export default function App() {
-  // Boot Sequence State (Always plays when site is loaded; can be skipped via ESC or button)
-  const [showBootScreen, setShowBootScreen] = useState<boolean>(true);
+  // Boot Sequence State (Plays once per session; can be replayed anytime via header button)
+  const [showBootScreen, setShowBootScreen] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      return !sessionStorage.getItem('ev_cockpit_boot_played');
+    }
+    return false;
+  });
 
   const [soundOn, setSoundOn] = useState<boolean>(isAudioEnabled());
 
@@ -42,7 +44,7 @@ export default function App() {
     lng: 75.7873
   });
   const [disabledChargers, setDisabledChargers] = useState<string[]>([]);
-  const [activeTab, setActiveTab] = useState<Tab>('planner');
+  const [activeView, setActiveView] = useState<ActiveView>('planner');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -112,6 +114,8 @@ export default function App() {
   const handleRouteResult = (result: RoutePlanResponse) => {
     setRouteResult(result);
     setError(null);
+    // Automatically switch view to 'results' so user immediately sees the feasibility decision!
+    setActiveView('results');
   };
 
   const handleChargerToggle = (chargerId: string, disabled: boolean) => {
@@ -170,260 +174,223 @@ export default function App() {
     }
   };
 
-  const tabs: { id: Tab; label: string; icon: React.ReactNode; count?: number }[] = [
-    { id: 'planner', label: 'Trip Planner', icon: <MapIcon size={15} /> },
-    { 
-      id: 'chargers', 
-      label: 'Charging Stations', 
-      icon: <Zap size={15} />, 
-      count: disabledChargers.length > 0 ? disabledChargers.length : undefined 
-    },
-    { id: 'explain', label: 'Explainability & AI', icon: <Info size={15} /> },
-  ];
+  const activeRouteOption = routeResult?.fastest_route;
 
   return (
-    <div className="min-h-screen bg-[#050811] text-slate-100 flex flex-col antialiased selection:bg-cyan-500 selection:text-black relative">
-      {/* 3D EV Cockpit Boot Startup Scene */}
+    <div className="min-h-screen bg-[#080b10] text-slate-100 flex flex-col antialiased selection:bg-orange-500 selection:text-white relative font-sans">
+      {/* 3D EV Boot Startup Scene (Plays once, skippable) */}
       {showBootScreen && (
         <EVCockpitBoot onComplete={handleBootComplete} />
       )}
 
-      {/* Main Cockpit Application (Hidden from view during boot so map/controls never bleed through) */}
+      {/* Main Application Interface */}
       <div 
-        className="flex-1 flex flex-col transition-opacity duration-700" 
+        className="flex-1 flex flex-col lg:flex-row h-screen overflow-hidden transition-opacity duration-500" 
         style={{ 
           visibility: showBootScreen ? 'hidden' : 'visible',
           opacity: showBootScreen ? 0 : 1
         }}
       >
-        {/* Top Futuristic Cockpit System Bar */}
-        <header className="border-b border-cyan-900/40 bg-slate-950/85 backdrop-blur-xl sticky top-0 z-40 shadow-[0_4px_25px_rgba(0,0,0,0.7)]">
-        <div className="max-w-screen-2xl mx-auto px-4 py-2.5 flex items-center justify-between">
-          {/* Brand & Cockpit Identity */}
-          <div className="flex items-center gap-3">
-            <div className="relative group cursor-pointer" onClick={handleReplayBoot} title="Click to replay 3D EV Boot Sequence">
-              <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-cyan-600 via-teal-500 to-emerald-400 p-0.5 shadow-[0_0_15px_rgba(6,182,212,0.4)] transition-transform group-hover:scale-105">
-                <div className="w-full h-full bg-slate-950 rounded-[10px] flex items-center justify-center">
-                  <Battery size={20} className="text-cyan-400 stroke-[2.5] pulse-charging" />
+        {/* Left Vertical Navigation Rail (Meitriya Style) */}
+        <NavigationRail
+          activeView={activeView}
+          onViewChange={(view) => {
+            playCockpitClick();
+            setActiveView(view);
+          }}
+          hasResult={!!routeResult}
+          disabledChargersCount={disabledChargers.length}
+          soundOn={soundOn}
+          onToggleSound={toggleSound}
+          backendOk={backendHealth.ok}
+          neo4jOk={backendHealth.neo4j}
+        />
+
+        {/* Primary Content Stage */}
+        <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
+          {/* Header Bar */}
+          <HeaderBar
+            routeLabel={activeRouteOption?.label}
+            distanceKm={activeRouteOption?.distance_km}
+            durationMin={activeRouteOption?.duration_min}
+            backendOk={backendHealth.ok}
+            neo4jOk={backendHealth.neo4j}
+            neo4jDiagnostic={backendHealth.neo4jDiagnostic}
+            onReplayIntro={handleReplayBoot}
+          />
+
+          {/* Backend Offline Warning Banner */}
+          {backendHealth.ok === false && (
+            <div className="bg-rose-950/80 border-b border-rose-800/80 px-4 py-2 text-center text-xs text-rose-200">
+              ⚠️ Backend API unreachable at <code className="bg-rose-900/60 px-1 py-0.5 rounded font-mono">127.0.0.1:8000</code>. 
+              Run <code className="bg-rose-900/60 px-1 py-0.5 rounded font-mono">run_backend.bat</code> in the project root.
+            </div>
+          )}
+
+          {/* Dual-Column Main Workspace */}
+          <div className="flex-1 flex flex-col lg:flex-row min-h-0 overflow-y-auto lg:overflow-hidden p-3 sm:p-5 gap-4">
+            {/* Left Control / Information Column (Scrollable) */}
+            <div className="w-full lg:w-[420px] xl:w-[460px] 2xl:w-[480px] flex flex-col shrink-0 lg:overflow-y-auto pr-0 lg:pr-1 gap-4">
+              {activeView === 'planner' && (
+                <TripPlanner
+                  vehicle={vehicle}
+                  onVehicleChange={setVehicle}
+                  selectedRouteId={selectedRouteId}
+                  onRouteSelect={setSelectedRouteId}
+                  disabledChargers={disabledChargers}
+                  onResult={handleRouteResult}
+                  onError={setError}
+                  onLoading={setLoading}
+                  isLoading={loading}
+                  onCustomLocationsChange={(orig, dest) => {
+                    setCustomOrigin(orig);
+                    setCustomDest(dest);
+                  }}
+                />
+              )}
+
+              {activeView === 'results' && routeResult && (
+                <JourneyResultsPanel
+                  result={routeResult}
+                  vehicle={vehicle}
+                  disabledChargers={disabledChargers}
+                  onChargerToggle={handleChargerToggle}
+                  selectedRouteId={selectedRouteId}
+                  onNavigateToEnergy={() => {
+                    playCockpitClick();
+                    setActiveView('energy');
+                  }}
+                />
+              )}
+
+              {activeView === 'results' && !routeResult && (
+                <div className="bg-[#121620] border border-[#222938] rounded-2xl flex flex-col items-center justify-center p-8 text-center text-slate-400">
+                  <Compass size={32} className="text-orange-400 mb-2" />
+                  <h3 className="text-sm font-bold text-white mb-1 font-mono uppercase">NO ACTIVE ROUTE CALCULATED</h3>
+                  <p className="text-xs text-slate-400 mb-4">Plan a journey in the Trip Planner to generate route decisions.</p>
+                  <button
+                    type="button"
+                    onClick={() => setActiveView('planner')}
+                    className="btn-primary text-xs"
+                  >
+                    Open Trip Planner
+                  </button>
                 </div>
-              </div>
-              <div className="absolute -bottom-1 -right-1 w-3.5 h-3.5 rounded-full bg-emerald-500 border-2 border-slate-950 flex items-center justify-center">
-                <Zap size={8} className="text-black stroke-[3]" />
-              </div>
+              )}
+
+              {activeView === 'energy' && (
+                <EnergyIntelligencePanel
+                  result={routeResult}
+                  vehicle={vehicle}
+                />
+              )}
+
+              {activeView === 'chargers' && (
+                <ChargerPanel
+                  routeResult={routeResult}
+                  disabledChargers={disabledChargers}
+                  onChargerToggle={handleChargerToggle}
+                  onResetDisabledChargers={resetDisabledChargers}
+                />
+              )}
+
+              {activeView === 'explain' && (
+                <ExplainPanel
+                  routeResult={routeResult}
+                  vehicle={vehicle}
+                />
+              )}
             </div>
 
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-base sm:text-lg font-black tracking-tight text-white font-sans flex items-center gap-1.5">
-                  WILL I MAKE IT?
-                  <span className="text-[10px] bg-cyan-950 text-cyan-300 font-mono px-2 py-0.5 rounded-full border border-cyan-800/60 shadow-[0_0_8px_rgba(6,182,212,0.2)]">
-                    COCKPIT HMI · v1.0
-                  </span>
-                </h1>
+            {/* Right Column: Large Interactive Central Map & Dynamic Action Ribbon */}
+            <div className="flex-1 flex flex-col min-w-0 min-h-[440px] lg:min-h-0 gap-3">
+              {/* Central Map Canvas (The Visual Centerpiece) */}
+              <div className="flex-1 w-full min-h-[380px] lg:min-h-0 relative">
+                <RouteMap
+                  routeResult={routeResult}
+                  selectedRouteId={selectedRouteId}
+                  disabledChargers={disabledChargers}
+                  onChargerToggle={handleChargerToggle}
+                  customOrigin={customOrigin}
+                  customDest={customDest}
+                />
               </div>
-              <p className="text-[11px] text-cyan-200/60 font-medium hidden sm:block">
-                Explainable, Risk-Aware EV Route Planner for Indian Conditions
-              </p>
+
+              {/* Dynamic Quick Ribbon under map when route is calculated */}
+              {routeResult && (
+                <div className="bg-[#121620] border border-[#222938] rounded-2xl px-4 py-3 shadow-xl flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 shrink-0">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${
+                      routeResult.fastest_route.feasible 
+                        ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' 
+                        : 'bg-rose-500/20 text-rose-400 border border-rose-500/30'
+                    }`}>
+                      <Zap size={16} />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-bold font-mono text-white">
+                          {routeResult.fastest_route.feasible ? 'FEASIBLE ROUTE' : 'RANGE CRITICAL'}
+                        </span>
+                        <span className="text-[10px] bg-[#1a2130] text-orange-400 font-mono font-bold px-1.5 py-0.5 rounded border border-[#262f42]">
+                          +{routeResult.fastest_route.feasibility_margin_kwh.toFixed(1)} kWh Reserve
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-400 truncate">
+                        P50: <strong className="text-teal-400">{routeResult.fastest_route.energy_result.total_kwh_p50.toFixed(1)} kWh</strong> · P90: <strong className="text-orange-400">{routeResult.fastest_route.energy_result.total_kwh_p90.toFixed(1)} kWh</strong> · Arrival SoC: <strong className="text-white">{routeResult.fastest_route.energy_result.soc_final_p90_pct.toFixed(0)}%</strong>
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Navigation Shortcuts */}
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        playCockpitClick();
+                        setActiveView('results');
+                      }}
+                      className="px-3 py-1.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white text-xs font-mono font-bold transition-all shadow-md shadow-orange-950/40"
+                    >
+                      Decision View
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        playCockpitClick();
+                        setActiveView('energy');
+                      }}
+                      className="px-3 py-1.5 rounded-xl bg-[#181e2b] hover:bg-[#202738] text-slate-200 border border-[#262f42] text-xs font-mono font-medium transition-all"
+                    >
+                      Energy Curves
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Loading Indicator */}
+              {loading && (
+                <div className="bg-[#121620] border border-[#222938] rounded-2xl flex items-center justify-center h-20 shadow-xl shrink-0">
+                  <div className="flex items-center gap-3 text-orange-400 text-xs font-mono font-bold tracking-wider">
+                    <div className="w-4 h-4 border-2 border-orange-400 border-t-transparent rounded-full animate-spin" />
+                    <span>CALCULATING HIGHWAY FORCES & CHARGER REACHABILITY...</span>
+                  </div>
+                </div>
+              )}
+
+              {/* Routing Error Notice */}
+              {error && !loading && (
+                <div className="bg-[#1c1214] border border-rose-500/40 rounded-2xl p-3.5 shadow-xl shrink-0">
+                  <div className="flex items-center gap-2 text-rose-400 text-xs font-bold uppercase tracking-wider font-mono">
+                    <AlertTriangle size={15} />
+                    Routing Constraint Alert
+                  </div>
+                  <p className="text-xs text-rose-200 mt-0.5">{error}</p>
+                </div>
+              )}
             </div>
           </div>
-
-          {/* Right Cockpit Telemetry Controls */}
-          <div className="flex items-center gap-2.5">
-            {/* Replay 3D Boot Screen */}
-            <button
-              type="button"
-              onClick={handleReplayBoot}
-              className="badge-pill bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-cyan-300 border-slate-700 hover:border-cyan-500/40 text-[11px] font-mono transition-all hidden md:inline-flex"
-              title="Replay EV 3D Boot Sequence"
-            >
-              <RotateCcw size={11} className="text-cyan-400" />
-              <span>BOOT SEQUENCE</span>
-            </button>
-
-            {/* Audio Toggle */}
-            <button
-              type="button"
-              onClick={toggleSound}
-              className="badge-pill bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-cyan-300 border-slate-700 hover:border-cyan-500/40 text-[11px] font-mono transition-all"
-              title={soundOn ? 'Mute Cockpit Audio' : 'Enable Cockpit Audio'}
-            >
-              {soundOn ? <Volume2 size={12} className="text-cyan-400" /> : <VolumeX size={12} className="text-slate-500" />}
-              <span className="hidden sm:inline">{soundOn ? 'AUDIO ON' : 'MUTED'}</span>
-            </button>
-
-            {/* Simulated Data Badge */}
-            <span className="badge-pill bg-amber-500/10 text-amber-300 border-amber-500/30 text-[11px] font-mono hidden lg:inline-flex">
-              <AlertTriangle size={11} className="text-amber-400" />
-              SIMULATED TELEMETRY
-            </span>
-
-            {/* Neo4j Status */}
-            <span className={`badge-pill text-[11px] font-mono hidden md:inline-flex ${
-              backendHealth.neo4j 
-                ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
-                : 'bg-slate-900 text-slate-400 border-slate-700'
-            }`} title={backendHealth.neo4jDiagnostic || 'Graph database integration status'}>
-              <Database size={11} className={backendHealth.neo4j ? 'text-emerald-400' : 'text-slate-500'} />
-              {backendHealth.neo4j ? 'Neo4j Graph Active' : 'Deterministic Fallback'}
-            </span>
-
-            {/* Backend Connection Status */}
-            <div className={`flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full border font-mono ${
-              backendHealth.ok === null 
-                ? 'bg-slate-900 text-slate-400 border-slate-700'
-                : backendHealth.ok 
-                  ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
-                  : 'bg-rose-500/10 text-rose-400 border-rose-500/30'
-            }`}>
-              <div className={`w-2 h-2 rounded-full ${
-                backendHealth.ok === null 
-                  ? 'bg-slate-500'
-                  : backendHealth.ok 
-                    ? 'bg-emerald-400 animate-pulse shadow-[0_0_8px_#10b981]'
-                    : 'bg-rose-400'
-              }`} />
-              <span className="font-semibold text-[11px]">
-                {backendHealth.ok === null ? 'CONNECTING...' : backendHealth.ok ? 'FASTAPI ONLINE' : 'API OFFLINE'}
-              </span>
-            </div>
-          </div>
         </div>
-      </header>
-
-      {/* Backend Offline Alert Banner */}
-      {backendHealth.ok === false && (
-        <div className="bg-rose-950/80 border-b border-rose-800/80 px-4 py-2 text-center text-xs text-rose-200">
-          ⚠️ Backend API unreachable at <code className="bg-rose-900/60 px-1 py-0.5 rounded font-mono">127.0.0.1:8000</code>. 
-          Run <code className="bg-rose-900/60 px-1 py-0.5 rounded font-mono">run_backend.bat</code> or double click <code className="bg-rose-900/60 px-1 py-0.5 rounded font-mono">run_all.bat</code> in the project root.
-        </div>
-      )}
-
-      {/* Main Cockpit Command Stage Layout */}
-      <main className="flex-1 max-w-screen-2xl mx-auto w-full px-3 sm:px-4 py-4 grid grid-cols-1 xl:grid-cols-12 gap-4">
-        {/* Left Column (5 Cols): Cockpit Journey Configuration */}
-        <div className="xl:col-span-5 flex flex-col gap-3.5">
-          {/* Tab Navigation Pill Bar */}
-          <div className="flex bg-slate-950/90 border border-cyan-900/40 rounded-2xl p-1 gap-1 shadow-xl backdrop-blur-md">
-            {tabs.map(tab => (
-              <button
-                key={tab.id}
-                type="button"
-                onClick={() => {
-                  playCockpitClick();
-                  setActiveTab(tab.id);
-                }}
-                className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-xl text-xs font-bold transition-all ${
-                  activeTab === tab.id
-                    ? 'bg-gradient-to-r from-cyan-500/20 via-teal-500/20 to-emerald-500/20 text-cyan-300 border border-cyan-500/40 shadow-[0_0_12px_rgba(6,182,212,0.2)]'
-                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
-                }`}
-              >
-                {tab.icon}
-                <span>{tab.label}</span>
-                {tab.count !== undefined && tab.count > 0 && (
-                  <span className="bg-rose-500 text-white text-[10px] font-mono px-1.5 py-0.2 rounded-full font-bold shadow-[0_0_8px_rgba(244,63,94,0.6)]">
-                    {tab.count}
-                  </span>
-                )}
-              </button>
-            ))}
-          </div>
-
-          {/* Active Tab Component */}
-          {activeTab === 'planner' && (
-            <TripPlanner
-              vehicle={vehicle}
-              onVehicleChange={setVehicle}
-              selectedRouteId={selectedRouteId}
-              onRouteSelect={setSelectedRouteId}
-              disabledChargers={disabledChargers}
-              onResult={handleRouteResult}
-              onError={setError}
-              onLoading={setLoading}
-              isLoading={loading}
-              onCustomLocationsChange={(orig, dest) => {
-                setCustomOrigin(orig);
-                setCustomDest(dest);
-              }}
-            />
-          )}
-
-          {activeTab === 'chargers' && (
-            <ChargerPanel
-              routeResult={routeResult}
-              disabledChargers={disabledChargers}
-              onChargerToggle={handleChargerToggle}
-              onResetDisabledChargers={resetDisabledChargers}
-            />
-          )}
-
-          {activeTab === 'explain' && (
-            <ExplainPanel
-              routeResult={routeResult}
-              vehicle={vehicle}
-            />
-          )}
-        </div>
-
-        {/* Right Column (7 Cols): Cockpit Navigation Map & Dynamic Route Telemetry */}
-        <div className="xl:col-span-7 flex flex-col gap-4">
-          {/* Map Section with HUD frame */}
-          <div className="h-80 sm:h-96 w-full relative">
-            <RouteMap
-              routeResult={routeResult}
-              selectedRouteId={selectedRouteId}
-              disabledChargers={disabledChargers}
-              onChargerToggle={handleChargerToggle}
-              customOrigin={customOrigin}
-              customDest={customDest}
-            />
-          </div>
-
-          {/* Loading Indicator */}
-          {loading && (
-            <div className="cockpit-panel flex items-center justify-center h-28 border-cyan-500/50 bg-slate-900/90 shadow-[0_0_20px_rgba(6,182,212,0.15)]">
-              <div className="flex items-center gap-3 text-cyan-400 text-xs font-mono font-bold tracking-wider">
-                <div className="w-5 h-5 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin shadow-[0_0_10px_#00f0ff]" />
-                <span>COMPUTING INDIAN EV DYNAMICS & BATTERY FEASIBILITY...</span>
-              </div>
-            </div>
-          )}
-
-          {/* Routing Error Notice */}
-          {error && !loading && (
-            <div className="cockpit-panel border-rose-500/50 bg-rose-950/40">
-              <div className="flex items-center gap-2 text-rose-400 text-xs font-bold uppercase tracking-wider font-mono">
-                <AlertTriangle size={15} />
-                Routing Constraint Alert
-              </div>
-              <p className="text-xs text-rose-200 mt-1">{error}</p>
-            </div>
-          )}
-
-          {/* Route Results & Cockpit Telemetry Cards */}
-          {!loading && routeResult && (
-            <RouteResults
-              result={routeResult}
-              vehicle={vehicle}
-              disabledChargers={disabledChargers}
-              onChargerToggle={handleChargerToggle}
-              selectedRouteId={selectedRouteId}
-            />
-          )}
-        </div>
-      </main>
-
-      {/* Cockpit Footer */}
-      <footer className="border-t border-cyan-950/60 bg-slate-950/80 px-4 py-3 mt-auto text-center text-slate-500 text-[11px] font-mono">
-        <div className="max-w-screen-2xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2">
-          <span className="text-cyan-400/80">
-            Will I Make It? · EV Cockpit HMI · Hackathon 2026
-          </span>
-          <span className="italic text-slate-400">
-            Physics engine: Aerodynamic Drag, Rolling Resistance, Elevation & Climate · SIMULATED Telemetry
-          </span>
-        </div>
-      </footer>
       </div>
     </div>
   );

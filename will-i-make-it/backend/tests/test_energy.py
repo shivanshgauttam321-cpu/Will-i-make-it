@@ -8,15 +8,30 @@ All tests use SYNTHETIC data from the physics model.
 import pytest
 import sys
 import os
+from datetime import datetime, timezone, timedelta
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from app.models.schemas import (
     VehicleProfile, RouteSegment, EnergyPredictRequest, ConnectorType
 )
 from app.services.energy_model import predict_energy, predict_segment, _temp_correction, _p90_factor
+from app.services.charger_service import (
+    init_db, set_reference_time, get_reference_time, compute_reliability,
+    add_report, STALE_THRESHOLD_HOURS
+)
 
 
 # ─── Fixtures ────────────────────────────────────────────────────────────────
+
+@pytest.fixture(autouse=True)
+def isolated_test_db(tmp_path, monkeypatch):
+    """Ensure every test runs against a clean, isolated SQLite database."""
+    test_db = tmp_path / "test_willimake.db"
+    monkeypatch.setenv("SQLITE_PATH", str(test_db))
+    set_reference_time(None)
+    init_db()
+    yield test_db
+    set_reference_time(None)
 
 def default_vehicle(**kwargs):
     params = dict(
@@ -299,6 +314,24 @@ class TestRoutingFeasibility:
         assert "INFEASIBLE" in resp.fastest_route.explanation
         assert resp.fastest_route.risk_score >= 0.90
 
+    def test_starting_soc_validation_api_rejection(self):
+        """Invalid starting SOC (< 0.0% or > 100.0%) must be rejected at schema and routing levels."""
+        from pydantic import ValidationError
+        from app.models.schemas import VehicleProfile, RoutePlanRequest
+
+        with pytest.raises(ValidationError):
+            default_vehicle(soc_start_pct=-5.0)
+
+        with pytest.raises(ValidationError):
+            default_vehicle(soc_start_pct=105.0)
+
+        # Boundary values 0.0 and 100.0 must be accepted
+        v0 = default_vehicle(soc_start_pct=0.0)
+        assert v0.soc_start_pct == 0.0
+
+        v100 = default_vehicle(soc_start_pct=100.0)
+        assert v100.soc_start_pct == 100.0
+
     def test_reserve_violation_flagged_infeasible(self):
         """
         When vehicle arrives with positive SoC that is strictly below the required reserve,
@@ -376,15 +409,18 @@ class TestRoutingFeasibility:
         """
         Risk-aware route must reject CHR_MH_003 (score 0.62 < 0.75 threshold)
         and choose CHR_MH_004 (score 0.94 >= 0.75).
+        Evaluated with deterministic reference time aligned with seed data.
         """
         from app.models.schemas import RoutePlanRequest
         from app.services.routing_service import plan_routes
 
+        ref_time = datetime(2026, 10, 29, 12, 0, 0, tzinfo=timezone.utc)
         req = RoutePlanRequest(
             origin_lat=19.076, origin_lng=72.8777,
             dest_lat=18.5204, dest_lng=73.8567,
             vehicle=default_vehicle(soc_start_pct=45.0, soc_reserve_pct=15.0),
             demo_route_id="MUMBAI_PUNE",
+            reference_time=ref_time,
         )
         resp = plan_routes(req)
 
@@ -493,13 +529,50 @@ class TestChargingPhysicsAndRoutingConstraints:
 
 
 class TestCustomRouteAndGeocoding:
-    def test_custom_route_planning_arbitrary_cities(self):
+    def test_custom_route_planning_arbitrary_cities(self, monkeypatch):
         """
         Verify that user can plan a route between ANY arbitrary Indian cities
         (e.g. New Delhi to Jaipur) without being limited to preset demo routes.
+        Uses mocked pipeline enrichment so test executes deterministically offline.
         """
         from app.models.schemas import RoutePlanRequest
-        from app.services.routing_service import plan_routes
+        from app.services.routing_service import plan_routes, _get_route_pipeline
+        from app.domain.provenance import DataValue, DataProvenance, DataStatus, SourceType
+        from app.domain.route import RouteDomain, RouteSegmentDomain
+
+        # Construct deterministic 280km enriched route representation
+        prov = DataProvenance(source_type=SourceType.PHYSICS_MODEL, provider_name="MOCK_ROUTING", status=DataStatus.ESTIMATED)
+        geom = [[28.6139 - i * (28.6139 - 26.9124)/20, 77.2090 - i * (77.2090 - 75.7873)/20] for i in range(21)]
+        segs = [
+            RouteSegmentDomain(
+                segment_id=f"DELHI_JAIPUR_S{i+1}",
+                sequence_order=i,
+                distance=DataValue(value=56.0, provenance=prov),
+                speed=DataValue(value=80.0, provenance=prov),
+                speed_limit=DataValue(value=80.0, provenance=prov),
+                elevation_start=DataValue(value=216.0, provenance=prov),
+                elevation_end=DataValue(value=430.0, provenance=prov),
+                gradient=DataValue(value=0.08, provenance=prov),
+                road_type=DataValue(value="highway", provenance=prov),
+                road_condition=DataValue(value="dry", provenance=prov),
+            )
+            for i in range(5)
+        ]
+        mock_domain = RouteDomain(
+            route_id="MOCK_DELHI_JAIPUR",
+            origin_coordinates=(28.6139, 77.2090),
+            destination_coordinates=(26.9124, 75.7873),
+            origin_name="New Delhi",
+            dest_name="Jaipur",
+            distance=DataValue(value=280.0, provenance=prov),
+            duration=DataValue(value=240.0, provenance=prov),
+            geometry=geom,
+            segments=segs,
+            provenance=prov,
+        )
+
+        pipeline = _get_route_pipeline()
+        monkeypatch.setattr(pipeline, "enrich_route", lambda **kwargs: mock_domain)
 
         v = default_vehicle(battery_capacity_kwh=40.5, soc_start_pct=90.0, soc_reserve_pct=10.0)
         req = RoutePlanRequest(
@@ -515,12 +588,33 @@ class TestCustomRouteAndGeocoding:
         resp = plan_routes(req)
 
         assert resp.fastest_route is not None
-        # Real highway driving distance Delhi to Jaipur is ~280+ km
+        # Highway driving distance Delhi to Jaipur is ~280 km
         assert resp.fastest_route.distance_km >= 200.0, f"Expected real highway distance, got {resp.fastest_route.distance_km}"
         assert len(resp.fastest_route.segments) >= 2, "Custom route must be decomposed into segments"
         assert resp.fastest_route.road_geometry is not None and len(resp.fastest_route.road_geometry) > 10
         assert "Dynamic Road-Snapped" in resp.data_source
         assert resp.fastest_route.energy_result.total_kwh_p50 > 0.0
+
+    @pytest.mark.skipif(os.environ.get("RUN_LIVE_NETWORK_TESTS") != "true", reason="Live network test skipped in offline suite")
+    def test_custom_route_planning_live_network(self):
+        """Optional test that exercises the live OSRM routing provider over the internet."""
+        from app.models.schemas import RoutePlanRequest
+        from app.services.routing_service import plan_routes
+
+        v = default_vehicle(battery_capacity_kwh=40.5, soc_start_pct=90.0, soc_reserve_pct=10.0)
+        req = RoutePlanRequest(
+            origin_lat=28.6139, origin_lng=77.2090,
+            dest_lat=26.9124, dest_lng=75.7873,
+            origin_name="New Delhi",
+            dest_name="Jaipur",
+            vehicle=v,
+            ambient_temp_c=28.0,
+            confidence_target=0.90,
+            demo_route_id=None,
+        )
+        resp = plan_routes(req)
+        assert resp.fastest_route is not None
+        assert resp.fastest_route.distance_km >= 200.0
 
     def test_geocoding_service_search(self):
         """Verify Indian place search returns accurate coordinates and names."""
@@ -543,24 +637,112 @@ class TestCustomRouteAndGeocoding:
 class TestChargerReliability:
     def test_unknown_charger_gets_prior(self):
         """Charger with no reports should get 0.5 reliability (not 1.0)."""
-        from app.services.charger_service import compute_reliability
         result = compute_reliability("NONEXISTENT_CHR")
         assert result["score"] == 0.5, "Unknown charger should get 0.5 prior"
         assert result["freshness_hours"] is None
 
     def test_all_success_high_score(self):
         """Charger with recent all-success reports should have high score."""
-        from app.services.charger_service import compute_reliability
-        # CHR_DL_001 has 3 success reports in seed data
-        result = compute_reliability("CHR_DL_001")
+        ref_time = datetime(2026, 10, 29, 12, 0, 0, tzinfo=timezone.utc)
+        result = compute_reliability("CHR_DL_001", as_of=ref_time)
         assert result["score"] >= 0.70, f"CHR_DL_001 should have high reliability, got {result['score']}"
 
     def test_mixed_reports_medium_score(self):
         """Charger with mixed reports should have medium score."""
-        from app.services.charger_service import compute_reliability
-        # CHR_MH_003 has 1 success, 2 failures
-        result = compute_reliability("CHR_MH_003")
+        ref_time = datetime(2026, 10, 29, 12, 0, 0, tzinfo=timezone.utc)
+        result = compute_reliability("CHR_MH_003", as_of=ref_time)
         assert 0.2 < result["score"] < 0.8, f"CHR_MH_003 should have medium reliability, got {result['score']}"
+
+    def test_fresh_successful_reports(self):
+        """3 fresh successful reports with Laplace prior gives (1+3)/(2+3) = 0.80."""
+        ref_time = datetime(2026, 11, 1, 12, 0, 0, tzinfo=timezone.utc)
+        cid = "CHR_UNIT_FRESH_OK"
+        now_iso = ref_time.isoformat()
+        for _ in range(3):
+            add_report(cid, True, "CCS2", 50.0, "Test fresh ok", "user_1", reported_at=now_iso)
+
+        res = compute_reliability(cid, as_of=ref_time)
+        assert res["score"] == 0.80
+        assert res["freshness_hours"] == 0.0
+        assert res["total_reports"] == 3
+
+    def test_fresh_unsuccessful_reports(self):
+        """3 fresh failed reports with Laplace prior gives (1+0)/(2+3) = 0.20."""
+        ref_time = datetime(2026, 11, 1, 12, 0, 0, tzinfo=timezone.utc)
+        cid = "CHR_UNIT_FRESH_FAIL"
+        now_iso = ref_time.isoformat()
+        for _ in range(3):
+            add_report(cid, False, "CCS2", None, "Test fresh fail", "user_1", reported_at=now_iso)
+
+        res = compute_reliability(cid, as_of=ref_time)
+        assert res["score"] == 0.20
+        assert res["freshness_hours"] == 0.0
+        assert res["total_reports"] == 3
+
+    def test_old_reports_decay_to_prior(self):
+        """Reports older than 10 half-lives (480 hours) decay back to uninformative prior 0.50."""
+        ref_time = datetime(2026, 11, 20, 12, 0, 0, tzinfo=timezone.utc)
+        old_time = ref_time - timedelta(hours=480)
+        cid = "CHR_UNIT_OLD"
+        for _ in range(5):
+            add_report(cid, True, "CCS2", 50.0, "Old report", "user_1", reported_at=old_time.isoformat())
+
+        res = compute_reliability(cid, as_of=ref_time)
+        # Even with 5 successes, at 480h (10 half-lives), weight is 2^-10 ≈ 0.00098, so score ≈ 0.50
+        assert abs(res["score"] - 0.50) < 0.01
+        assert res["freshness_hours"] == 480.0
+
+    def test_mixed_age_reports_recent_dominates(self):
+        """Fresh success outweighs 2-half-life old failure: score should be ~0.615."""
+        ref_time = datetime(2026, 11, 1, 12, 0, 0, tzinfo=timezone.utc)
+        cid = "CHR_UNIT_MIXED"
+        old_fail_time = ref_time - timedelta(hours=96)  # 2 half-lives: weight = 0.25
+        add_report(cid, False, "CCS2", None, "Old fail", "user_1", reported_at=old_fail_time.isoformat())
+        add_report(cid, True, "CCS2", 60.0, "Fresh ok", "user_1", reported_at=ref_time.isoformat())
+
+        # W_succ = 1 (prior) + 1.0 (fresh ok) = 2.0
+        # W_tot = 2 (prior) + 1.0 (fresh ok) + 0.25 (old fail) = 3.25
+        # Expected score: 2.0 / 3.25 = 0.615
+        res = compute_reliability(cid, as_of=ref_time)
+        assert abs(res["score"] - 0.615) < 0.01
+        assert res["freshness_hours"] == 0.0
+
+    def test_missing_or_invalid_timestamps_graceful(self):
+        """Missing or malformed timestamps default safely to STALE_THRESHOLD_HOURS without crashing."""
+        ref_time = datetime(2026, 11, 1, 12, 0, 0, tzinfo=timezone.utc)
+        cid = "CHR_UNIT_MALFORMED"
+        add_report(cid, True, "CCS2", 50.0, "Bad date", "user_1", reported_at="invalid-date-format")
+
+        res = compute_reliability(cid, as_of=ref_time)
+        assert res["total_reports"] == 1
+        assert res["freshness_hours"] == STALE_THRESHOLD_HOURS
+
+    def test_monotonic_score_decay_over_time(self):
+        """Reliability score of a successful station decays monotonically toward 0.50 as time advances."""
+        t0 = datetime(2026, 11, 1, 12, 0, 0, tzinfo=timezone.utc)
+        cid = "CHR_UNIT_MONOTONIC"
+        for _ in range(4):
+            add_report(cid, True, "CCS2", 50.0, "Success", "user_1", reported_at=t0.isoformat())
+
+        scores = [
+            compute_reliability(cid, as_of=t0 + timedelta(hours=h))["score"]
+            for h in [0, 24, 48, 96, 240, 720]
+        ]
+        # Assert strictly decreasing toward 0.50
+        for i in range(len(scores) - 1):
+            assert scores[i] > scores[i + 1], f"Expected decay: {scores[i]} > {scores[i+1]}"
+            assert scores[i] > 0.50
+        assert abs(scores[-1] - 0.50) < 0.01
+
+    def test_global_reference_time_injection(self):
+        """set_reference_time controls evaluation time across services when as_of is omitted."""
+        ref_time = datetime(2026, 10, 29, 12, 0, 0, tzinfo=timezone.utc)
+        set_reference_time(ref_time)
+        try:
+            res = compute_reliability("CHR_DL_001")
+            assert res["score"] >= 0.70
+        finally:
+            set_reference_time(None)
 
 
 class TestSimulation:
