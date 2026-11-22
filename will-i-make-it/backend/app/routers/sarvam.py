@@ -13,7 +13,8 @@ from pydantic import BaseModel
 from typing import Optional, Dict, Any
 
 from app.services.sarvam_service import (
-    is_enabled, is_configured, speech_to_text, text_to_speech, build_explanation_text
+    is_enabled, is_configured, speech_to_text, text_to_speech, build_explanation_text,
+    get_sarvam_health, get_stt_model, get_tts_model, DEFAULT_SPEAKER
 )
 from app.services.sarvam_nlp import execute_conversational_trip_query
 
@@ -28,7 +29,7 @@ class STTRequest(BaseModel):
 class TTSRequest(BaseModel):
     text: str
     language_code: str = "hi-IN"
-    speaker: str = "meera"
+    speaker: str = DEFAULT_SPEAKER
 
 
 class ExplainRequest(BaseModel):
@@ -41,15 +42,15 @@ class ConverseRequest(BaseModel):
     audio_b64: Optional[str] = None
     language_code: str = "hi-IN"
     speak_response: bool = False
-    speaker: str = "meera"
+    speaker: str = DEFAULT_SPEAKER
 
 
 @router.get("/status")
 def sarvam_status():
     enabled = is_enabled()
     configured = is_configured()
-    stt_model = os.environ.get("SARVAM_STT_MODEL", "saarika:v2")
-    tts_model = os.environ.get("SARVAM_TTS_MODEL", "bulbul:v1")
+    stt_model = get_stt_model()
+    tts_model = get_tts_model()
     default_lang = os.environ.get("SARVAM_DEFAULT_LANGUAGE", "hi-IN")
 
     if not enabled:
@@ -57,24 +58,40 @@ def sarvam_status():
     elif not configured:
         msg = "Sarvam enabled but SARVAM_API_KEY not configured. Set SARVAM_API_KEY in .env."
     else:
-        msg = f"Sarvam AI is enabled, configured, and ready. STT: {stt_model}, TTS: {tts_model}."
+        msg = f"Sarvam AI is enabled, configured, and operational. STT: {stt_model}, TTS: {tts_model}."
 
     return {
         "enabled": enabled,
         "configured": configured,
         "stt_model": stt_model,
         "tts_model": tts_model,
+        "default_speaker": DEFAULT_SPEAKER,
         "default_language": default_lang,
         "message": msg,
     }
 
 
+@router.get("/health")
+def sarvam_health():
+    """Detailed operational health status for frontend Sarvam Health Panel."""
+    return get_sarvam_health()
+
+
 def _raise_error(result: str):
-    is_validation = any(k in result for k in [
+    lower = result.lower()
+    if "authentication failed" in lower or "401" in result or "403" in result:
+        status_code = 401
+    elif "rate limit" in lower or "429" in result:
+        status_code = 429
+    elif "timed out" in lower or "504" in result:
+        status_code = 504
+    elif any(k in result for k in [
         "Unsupported language", "Unsupported speaker", "Invalid base64",
-        "exceeds maximum", "must be a non-empty"
-    ])
-    status_code = 400 if is_validation else 503
+        "exceeds maximum", "must be a non-empty", "bad request", "400"
+    ]):
+        status_code = 400
+    else:
+        status_code = 503
     raise HTTPException(status_code=status_code, detail=result)
 
 

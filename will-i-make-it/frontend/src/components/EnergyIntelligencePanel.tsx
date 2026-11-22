@@ -19,10 +19,10 @@ export default function EnergyIntelligencePanel({ result, vehicle }: Props) {
 
   if (!result) {
     return (
-      <div className="bg-[#121620] border border-[#222938] rounded-2xl flex flex-col items-center justify-center h-56 text-center text-slate-500 p-6">
-        <Flame size={28} className="mb-2 text-slate-400" />
-        <h4 className="text-sm font-mono font-bold text-slate-300 uppercase">NO ACTIVE ROUTE SIMULATION</h4>
-        <p className="text-xs text-slate-500 mt-1">Compute a route in the Trip Planner to view full physical energy curves & terrain breakdown.</p>
+      <div className="bg-white border border-[#E2E8F0] rounded-2xl flex flex-col items-center justify-center h-56 text-center text-[#64748B] p-6 shadow-sm">
+        <Flame size={28} className="mb-2 text-[#F97316]" />
+        <h4 className="text-sm font-mono font-bold text-[#172033] uppercase">NO ACTIVE ROUTE SIMULATION</h4>
+        <p className="text-xs text-[#64748B] mt-1">Compute a route in the Trip Planner to view full physical energy curves & terrain breakdown.</p>
       </div>
     );
   }
@@ -113,14 +113,14 @@ export default function EnergyIntelligencePanel({ result, vehicle }: Props) {
   return (
     <div className="flex flex-col gap-4">
       {/* 1. Header with Mode Selector */}
-      <div className="bg-[#121620] border border-[#222938] rounded-2xl p-4 shadow-xl flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+      <div className="bg-white border border-[#E2E8F0] rounded-2xl p-4 shadow-sm flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
         <div className="flex items-center gap-2">
-          <Activity size={16} className="text-orange-400" />
+          <Activity size={16} className="text-[#F97316]" />
           <div>
-            <h3 className="text-xs font-bold font-mono tracking-wider text-slate-200 uppercase">
+            <h3 className="text-xs font-bold font-mono tracking-wider text-[#172033] uppercase">
               DETAILED ENERGY INTELLIGENCE
             </h3>
-            <p className="text-xs text-slate-400 mt-0.5">
+            <p className="text-xs text-[#64748B] mt-0.5">
               Trajectory modeling, log-normal uncertainty bounds & road segment forces.
             </p>
           </div>
@@ -128,14 +128,14 @@ export default function EnergyIntelligencePanel({ result, vehicle }: Props) {
 
         {/* Mode Switcher */}
         {result.risk_aware_route && (
-          <div className="flex bg-[#0e1219] p-0.5 rounded-xl border border-[#222938] text-xs font-mono">
+          <div className="flex bg-[#F1F4F8] p-0.5 rounded-xl border border-[#E2E8F0] text-xs font-mono">
             <button
               type="button"
               onClick={() => setSelectedMode('fastest')}
               className={`px-3 py-1 rounded-lg font-medium transition-all ${
                 selectedMode === 'fastest'
-                  ? 'bg-orange-500 text-white font-bold'
-                  : 'text-slate-400 hover:text-slate-200'
+                  ? 'bg-[#F97316] text-white font-bold shadow-sm'
+                  : 'text-[#64748B] hover:text-[#172033]'
               }`}
             >
               Fastest Path
@@ -145,8 +145,8 @@ export default function EnergyIntelligencePanel({ result, vehicle }: Props) {
               onClick={() => setSelectedMode('risk_aware')}
               className={`px-3 py-1 rounded-lg font-medium transition-all ${
                 selectedMode === 'risk_aware'
-                  ? 'bg-emerald-600 text-white font-bold'
-                  : 'text-slate-400 hover:text-slate-200'
+                  ? 'bg-emerald-600 text-white font-bold shadow-sm'
+                  : 'text-[#64748B] hover:text-[#172033]'
               }`}
             >
               Risk-Aware Path
@@ -156,20 +156,20 @@ export default function EnergyIntelligencePanel({ result, vehicle }: Props) {
       </div>
 
       {/* 2. Battery SoC Trajectory Profile AreaChart */}
-      <div className="bg-[#121620] border border-[#222938] rounded-2xl p-4 shadow-xl">
-        <div className="flex items-center justify-between mb-3 border-b border-[#1e2535] pb-2">
+      <div className="bg-white border border-[#E2E8F0] rounded-2xl p-4 shadow-sm">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3 border-b border-[#F1F4F8] pb-2">
           <div className="flex items-center gap-2">
-            <Flame size={14} className="text-orange-400" />
-            <h4 className="text-xs font-bold font-mono tracking-wider text-slate-200 uppercase">
+            <Flame size={14} className="text-[#F97316]" />
+            <h4 className="text-xs font-bold font-mono tracking-wider text-[#172033] uppercase">
               BATTERY SOC TRAJECTORY PROFILE (%)
             </h4>
           </div>
-          <div className="flex items-center gap-3 text-[10px] text-slate-400 font-mono">
+          <div className="flex flex-wrap items-center gap-2.5 sm:gap-3 text-[10px] text-[#64748B] font-mono">
             <span className="flex items-center gap-1">
-              <span className="w-2.5 h-2.5 rounded-full bg-teal-400 inline-block" /> P50 Expected
+              <span className="w-2.5 h-2.5 rounded-full bg-teal-500 inline-block" /> P50 Expected
             </span>
             <span className="flex items-center gap-1">
-              <span className="w-2.5 h-2.5 rounded-full bg-orange-400 inline-block" /> P90 Conservative
+              <span className="w-2.5 h-2.5 rounded-full bg-[#F97316] inline-block" /> P90 Conservative
             </span>
             <span className="flex items-center gap-1">
               <span className="w-2.5 h-0.5 bg-rose-500 inline-block" /> Reserve ({vehicle.soc_reserve_pct}%)
@@ -177,7 +177,7 @@ export default function EnergyIntelligencePanel({ result, vehicle }: Props) {
           </div>
         </div>
 
-        <div className="h-52 w-full bg-[#0a0e14] rounded-xl p-2.5 border border-[#1e2535]">
+        <div className="h-52 w-full bg-[#F8FAFC] rounded-xl p-2.5 border border-[#E2E8F0]">
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={dischargeData} margin={{ top: 10, right: 15, left: -20, bottom: 0 }}>
               <defs>
@@ -193,8 +193,8 @@ export default function EnergyIntelligencePanel({ result, vehicle }: Props) {
               <XAxis dataKey="km" tick={{ fontSize: 10, fill: '#64748b' }} unit="km" />
               <YAxis domain={[0, 100]} tick={{ fontSize: 10, fill: '#64748b' }} unit="%" />
               <Tooltip 
-                contentStyle={{ backgroundColor: '#121620', borderColor: '#262f42', borderRadius: '12px', fontSize: '11px', boxShadow: '0 10px 25px rgba(0,0,0,0.8)' }}
-                labelStyle={{ color: '#cbd5e1', fontFamily: 'monospace' }}
+                contentStyle={{ backgroundColor: '#ffffff', borderColor: '#E2E8F0', borderRadius: '12px', fontSize: '11px', boxShadow: '0 4px 15px rgba(0,0,0,0.08)' }}
+                labelStyle={{ color: '#172033', fontFamily: 'monospace' }}
               />
               <ReferenceLine 
                 y={vehicle.soc_reserve_pct} 
@@ -228,53 +228,53 @@ export default function EnergyIntelligencePanel({ result, vehicle }: Props) {
 
       {/* 3. Uncertainty & Risk Spread Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-        <div className="bg-[#121620] border border-[#222938] rounded-2xl p-3.5 text-center shadow-lg">
-          <span className="text-[10px] font-mono uppercase tracking-wider text-slate-400 block mb-1">
+        <div className="bg-white border border-[#E2E8F0] rounded-2xl p-3.5 text-center shadow-sm">
+          <span className="text-[10px] font-mono uppercase tracking-wider text-[#64748B] block mb-1">
             EXPECTED VS P90 SPREAD
           </span>
-          <span className="text-xl font-black font-mono text-orange-400">
+          <span className="text-xl font-black font-mono text-orange-600">
             +{uncertaintyDelta.toFixed(1)} kWh
           </span>
-          <span className="text-[10px] text-slate-500 font-mono block mt-0.5">
+          <span className="text-[10px] text-[#64748B] font-mono block mt-0.5">
             (+{uncertaintyPct}% Reserve Buffer)
           </span>
         </div>
 
-        <div className="bg-[#121620] border border-[#222938] rounded-2xl p-3.5 text-center shadow-lg">
-          <span className="text-[10px] font-mono uppercase tracking-wider text-slate-400 block mb-1">
+        <div className="bg-white border border-[#E2E8F0] rounded-2xl p-3.5 text-center shadow-sm">
+          <span className="text-[10px] font-mono uppercase tracking-wider text-[#64748B] block mb-1">
             CONFIDENCE LEVEL
           </span>
-          <span className="text-xl font-black font-mono text-teal-400">
+          <span className="text-xl font-black font-mono text-teal-700">
             90% Target
           </span>
-          <span className="text-[10px] text-slate-500 font-mono block mt-0.5">
+          <span className="text-[10px] text-[#64748B] font-mono block mt-0.5">
             Log-Normal Analytical Prior
           </span>
         </div>
 
-        <div className="bg-[#121620] border border-[#222938] rounded-2xl p-3.5 text-center shadow-lg">
-          <span className="text-[10px] font-mono uppercase tracking-wider text-slate-400 block mb-1">
+        <div className="bg-white border border-[#E2E8F0] rounded-2xl p-3.5 text-center shadow-sm">
+          <span className="text-[10px] font-mono uppercase tracking-wider text-[#64748B] block mb-1">
             REGEN ENERGY RECAPTURED
           </span>
-          <span className="text-xl font-black font-mono text-emerald-400">
+          <span className="text-xl font-black font-mono text-emerald-700">
             ~{avgRegen.toFixed(2)} kWh
           </span>
-          <span className="text-[10px] text-slate-500 font-mono block mt-0.5">
+          <span className="text-[10px] text-[#64748B] font-mono block mt-0.5">
             {((avgRegen / Math.max(0.01, totalForces)) * 100).toFixed(0)}% Kinetic Recapture
           </span>
         </div>
       </div>
 
       {/* 4. Segment Physical Forces Breakdown BarChart */}
-      <div className="bg-[#121620] border border-[#222938] rounded-2xl p-4 shadow-xl">
-        <div className="flex items-center justify-between mb-3 border-b border-[#1e2535] pb-2">
+      <div className="bg-white border border-[#E2E8F0] rounded-2xl p-4 shadow-sm">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3 border-b border-[#F1F4F8] pb-2">
           <div className="flex items-center gap-2">
-            <Layers size={14} className="text-orange-400" />
-            <h4 className="text-xs font-bold font-mono tracking-wider text-slate-200 uppercase">
+            <Layers size={14} className="text-[#F97316]" />
+            <h4 className="text-xs font-bold font-mono tracking-wider text-[#172033] uppercase">
               ROAD SEGMENT FORCES (kWh)
             </h4>
           </div>
-          <div className="flex items-center gap-3 text-[10px] font-mono text-slate-400">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-[10px] font-mono text-[#64748B]">
             <span className="flex items-center gap-1">
               <span className="w-2.5 h-2.5 bg-sky-500 rounded-sm" /> Rolling
             </span>
@@ -290,14 +290,14 @@ export default function EnergyIntelligencePanel({ result, vehicle }: Props) {
           </div>
         </div>
 
-        <div className="h-48 w-full bg-[#0a0e14] rounded-xl p-2 border border-[#1e2535]">
+        <div className="h-48 w-full bg-[#F8FAFC] rounded-xl p-2 border border-[#E2E8F0]">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={segmentEnergyData} margin={{ top: 5, right: 10, bottom: 5, left: -20 }}>
               <XAxis dataKey="name" tick={{ fontSize: 9, fill: '#64748b' }} />
               <YAxis tick={{ fontSize: 9, fill: '#64748b' }} unit="kWh" />
               <Tooltip 
-                contentStyle={{ backgroundColor: '#121620', borderColor: '#262f42', borderRadius: '8px', fontSize: '11px' }} 
-                labelStyle={{ color: '#cbd5e1' }}
+                contentStyle={{ backgroundColor: '#ffffff', borderColor: '#E2E8F0', borderRadius: '8px', fontSize: '11px', boxShadow: '0 4px 15px rgba(0,0,0,0.08)' }} 
+                labelStyle={{ color: '#172033' }}
               />
               <Bar dataKey="rolling" name="Rolling Force" stackId="a" fill="#0284c7" />
               <Bar dataKey="aero" name="Aero Drag" stackId="a" fill="#3b82f6" />

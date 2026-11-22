@@ -55,15 +55,15 @@ class ProvenanceService:
                 },
                 {
                     "domain": "SPEECH_AND_AI",
-                    "name": "Sarvam AI (Saarika & Bulbul)",
+                    "name": "Sarvam AI (Saaras & Bulbul)",
                     "enabled": sarvam_enabled(),
                     "active": sarvam_configured(),
                     "data_classification": "AI_GENERATED_EXPLANATION",
                     "license": "Sarvam AI Developer License",
                     "credentials_configured": bool(os.environ.get("SARVAM_API_KEY")),
                     "details": {
-                        "stt_model": os.environ.get("SARVAM_STT_MODEL", "saarika:v2"),
-                        "tts_model": os.environ.get("SARVAM_TTS_MODEL", "bulbul:v1"),
+                        "stt_model": os.environ.get("SARVAM_STT_MODEL", "saaras:v4"),
+                        "tts_model": os.environ.get("SARVAM_TTS_MODEL", "bulbul:v3"),
                     },
                 },
                 {

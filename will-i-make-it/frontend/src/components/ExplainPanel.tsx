@@ -19,7 +19,7 @@ export default function ExplainPanel({ routeResult, vehicle }: Props) {
   const [ttsError, setTtsError] = useState<string | null>(null);
   const [explainText, setExplainText] = useState<string | null>(null);
   const [selectedLang, setSelectedLang] = useState<'hi-IN' | 'en-IN'>('hi-IN');
-  const [selectedSpeaker, setSelectedSpeaker] = useState('meera');
+  const [selectedSpeaker, setSelectedSpeaker] = useState('simran');
 
   // Conversational Assistant states
   const [conversePrompt, setConversePrompt] = useState('');
@@ -151,10 +151,10 @@ export default function ExplainPanel({ routeResult, vehicle }: Props) {
 
   if (!routeResult) {
     return (
-      <div className="bg-[#121620] border border-[#222938] rounded-2xl flex flex-col items-center justify-center h-48 text-center text-slate-500 p-4">
-        <Info size={26} className="mb-2 text-slate-400" />
-        <p className="text-sm font-mono font-bold text-slate-300 uppercase">NO ACTIVE ROUTE PLAN</p>
-        <p className="text-xs text-slate-500 mt-1">Compute a route in Trip Planner to view physical energy contributors & uncertainty.</p>
+      <div className="bg-white border border-[#E2E8F0] rounded-2xl flex flex-col items-center justify-center h-48 text-center text-[#64748B] p-4 shadow-sm">
+        <Info size={26} className="mb-2 text-[#F97316]" />
+        <p className="text-sm font-mono font-bold text-[#172033] uppercase">NO ACTIVE ROUTE PLAN</p>
+        <p className="text-xs text-[#64748B] mt-1">Compute a route in Trip Planner to view physical energy contributors & uncertainty.</p>
       </div>
     );
   }
@@ -176,7 +176,7 @@ export default function ExplainPanel({ routeResult, vehicle }: Props) {
 
   const forceItems = [
     { name: 'Aerodynamic Drag', val: avgAero, color: 'bg-blue-500', desc: '0.5 · ρ · Cd · A · v²' },
-    { name: 'Rolling Resistance', val: avgRoll, color: 'bg-cyan-500', desc: 'Crr · m · g' },
+    { name: 'Rolling Resistance', val: avgRoll, color: 'bg-sky-500', desc: 'Crr · m · g' },
     { name: 'Gradient / Elevation', val: avgGrad, color: 'bg-orange-500', desc: 'm · g · sin(θ)' },
     { name: 'Auxiliary & AC Power', val: avgAux, color: 'bg-emerald-500', desc: 'kW · time' },
   ];
@@ -184,26 +184,26 @@ export default function ExplainPanel({ routeResult, vehicle }: Props) {
   return (
     <div className="flex flex-col gap-4">
       {/* Analytical Disclaimer Banner */}
-      <div className="bg-[#1c1610] border border-orange-500/30 rounded-2xl p-4 shadow-xl">
+      <div className="bg-orange-50 border border-orange-200 rounded-2xl p-4 shadow-sm">
         <div className="flex items-start gap-3">
-          <AlertTriangle size={16} className="text-orange-400 shrink-0 mt-0.5" />
+          <AlertTriangle size={16} className="text-[#F97316] shrink-0 mt-0.5" />
           <div>
-            <h4 className="text-xs font-mono font-bold text-orange-400 uppercase tracking-wider mb-0.5">
+            <h4 className="text-xs font-mono font-bold text-orange-700 uppercase tracking-wider mb-0.5">
               ANALYTICAL PHYSICS DISCLAIMER
             </h4>
-            <p className="text-xs text-orange-200/90 leading-relaxed">
+            <p className="text-xs text-orange-950 leading-relaxed">
               All energy estimates are derived deterministically from first-principles vehicle dynamics. 
-              P90 bounds are log-normal analytical estimates labeled as <strong className="font-mono text-orange-400">MODEL_BASED_P90_ESTIMATE</strong>.
+              P90 bounds are log-normal analytical estimates labeled as <strong className="font-mono text-orange-700">MODEL_BASED_P90_ESTIMATE</strong>.
             </p>
           </div>
         </div>
       </div>
 
       {/* 1. Energy Forces Breakdown */}
-      <div className="bg-[#121620] border border-[#222938] rounded-2xl p-4 shadow-xl">
-        <div className="flex items-center gap-2 mb-3 border-b border-[#1e2535] pb-2">
-          <Layers size={14} className="text-orange-400" />
-          <h3 className="text-xs font-bold font-mono tracking-wider text-slate-200 uppercase">
+      <div className="bg-white border border-[#E2E8F0] rounded-2xl p-4 shadow-sm">
+        <div className="flex items-center gap-2 mb-3 border-b border-[#F1F4F8] pb-2">
+          <Layers size={14} className="text-[#F97316]" />
+          <h3 className="text-xs font-bold font-mono tracking-wider text-[#172033] uppercase">
             PHYSICAL ENERGY CONTRIBUTORS (PER SEGMENT)
           </h3>
         </div>
@@ -215,12 +215,12 @@ export default function ExplainPanel({ routeResult, vehicle }: Props) {
               <div key={item.name}>
                 <div className="flex justify-between items-center text-xs mb-1">
                   <div>
-                    <span className="font-semibold text-slate-200">{item.name}</span>
-                    <span className="text-[10px] text-slate-500 ml-2 font-mono">({item.desc})</span>
+                    <span className="font-semibold text-[#172033]">{item.name}</span>
+                    <span className="text-[10px] text-[#64748B] ml-2 font-mono">({item.desc})</span>
                   </div>
-                  <span className="font-mono text-slate-300 font-bold">{pct.toFixed(0)}%</span>
+                  <span className="font-mono text-[#172033] font-bold">{pct.toFixed(0)}%</span>
                 </div>
-                <div className="h-2 bg-[#0e1219] rounded-full overflow-hidden p-0.5 border border-[#1e2535]">
+                <div className="h-2 bg-[#F1F4F8] rounded-full overflow-hidden p-0.5 border border-[#E2E8F0]">
                   <div className={`h-full rounded-full ${item.color}`} style={{ width: `${pct}%` }} />
                 </div>
               </div>
@@ -229,49 +229,49 @@ export default function ExplainPanel({ routeResult, vehicle }: Props) {
         </div>
 
         {avgRegen > 0 && (
-          <div className="mt-3.5 pt-2.5 border-t border-[#1e2535] flex items-center justify-between text-xs font-mono">
-            <span className="text-emerald-400 font-bold flex items-center gap-1">
+          <div className="mt-3.5 pt-2.5 border-t border-[#F1F4F8] flex items-center justify-between text-xs font-mono">
+            <span className="text-emerald-700 font-bold flex items-center gap-1">
               ⚡ Regenerative Braking Recaptured:
             </span>
-            <span className="text-emerald-300 font-bold">~{avgRegen.toFixed(2)} kWh/seg</span>
+            <span className="text-emerald-800 font-bold">~{avgRegen.toFixed(2)} kWh/seg</span>
           </div>
         )}
       </div>
 
       {/* 2. P50 vs P90 Risk & Uncertainty Assessment */}
-      <div className="bg-[#121620] border border-[#222938] rounded-2xl p-4 shadow-xl">
-        <div className="flex items-center gap-2 mb-2.5 border-b border-[#1e2535] pb-2">
-          <Activity size={14} className="text-orange-400" />
-          <h3 className="text-xs font-bold font-mono tracking-wider text-slate-200 uppercase">
+      <div className="bg-white border border-[#E2E8F0] rounded-2xl p-4 shadow-sm">
+        <div className="flex items-center gap-2 mb-2.5 border-b border-[#F1F4F8] pb-2">
+          <Activity size={14} className="text-[#F97316]" />
+          <h3 className="text-xs font-bold font-mono tracking-wider text-[#172033] uppercase">
             UNCERTAINTY & RISK RESERVE SPREAD
           </h3>
         </div>
 
         <div className="grid grid-cols-2 gap-2.5 mb-3 text-center">
-          <div className="bg-[#0e1219] border border-[#1e2535] rounded-xl p-3">
-            <span className="text-[10px] text-slate-400 block font-mono uppercase">NOMINAL SPREAD</span>
-            <span className="font-mono font-black text-orange-400 text-lg">+{uncertaintyDelta.toFixed(1)} kWh</span>
-            <span className="text-[10px] text-slate-500 font-mono block mt-0.5">(+{uncertaintyPct}% Reserve)</span>
+          <div className="bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl p-3">
+            <span className="text-[10px] text-[#64748B] block font-mono uppercase">NOMINAL SPREAD</span>
+            <span className="font-mono font-black text-orange-600 text-lg">+{uncertaintyDelta.toFixed(1)} kWh</span>
+            <span className="text-[10px] text-[#64748B] font-mono block mt-0.5">(+{uncertaintyPct}% Reserve)</span>
           </div>
-          <div className="bg-[#0e1219] border border-[#1e2535] rounded-xl p-3">
-            <span className="text-[10px] text-slate-400 block font-mono uppercase">CONFIDENCE BAND</span>
-            <span className="font-mono font-black text-teal-400 text-lg">90% Target</span>
-            <span className="text-[10px] text-slate-500 font-mono block mt-0.5">(Log-normal prior)</span>
+          <div className="bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl p-3">
+            <span className="text-[10px] text-[#64748B] block font-mono uppercase">CONFIDENCE BAND</span>
+            <span className="font-mono font-black text-teal-700 text-lg">90% Target</span>
+            <span className="text-[10px] text-[#64748B] font-mono block mt-0.5">(Log-normal prior)</span>
           </div>
         </div>
 
-        <p className="text-xs text-slate-300 leading-relaxed">
-          The conservative P90 estimate budgets an additional <strong className="text-orange-400 font-mono">{uncertaintyDelta.toFixed(1)} kWh</strong> buffer 
+        <p className="text-xs text-[#334155] leading-relaxed">
+          The conservative P90 estimate budgets an additional <strong className="text-orange-600 font-mono">+{uncertaintyDelta.toFixed(1)} kWh</strong> buffer 
           against highway headwinds, high ambient AC cooling demand, Indian traffic congestion, and battery degradation.
         </p>
       </div>
 
-      {/* 3. Interactive Multilingual Voice & AI Assistant (Phase 2 Master Feature) */}
-      <div className="bg-[#121620] border border-[#222938] rounded-2xl p-4 shadow-xl">
-        <div className="flex items-center justify-between mb-2 border-b border-[#1e2535] pb-2">
+      {/* 3. Interactive Multilingual Voice & AI Assistant */}
+      <div className="bg-white border border-[#E2E8F0] rounded-2xl p-4 shadow-sm">
+        <div className="flex items-center justify-between mb-2 border-b border-[#F1F4F8] pb-2">
           <div className="flex items-center gap-2">
-            <Radio size={14} className="text-orange-400" />
-            <h3 className="text-xs font-bold font-mono tracking-wider text-slate-200 uppercase">
+            <Radio size={14} className="text-[#F97316]" />
+            <h3 className="text-xs font-bold font-mono tracking-wider text-[#172033] uppercase">
               SARVAM MULTILINGUAL CONVERSATIONAL ASSISTANT
             </h3>
           </div>
@@ -280,7 +280,7 @@ export default function ExplainPanel({ routeResult, vehicle }: Props) {
             <select
               value={selectedLang}
               onChange={(e) => setSelectedLang(e.target.value as any)}
-              className="bg-[#0e1219] text-xs text-slate-300 font-mono border border-[#1e2535] rounded-lg px-2 py-1 outline-none"
+              className="bg-[#F8FAFC] text-xs text-[#172033] font-mono border border-[#CBD5E1] rounded-lg px-2 py-1 outline-none"
             >
               <option value="hi-IN">Hindi (hi-IN)</option>
               <option value="en-IN">Indian English (en-IN)</option>
@@ -289,7 +289,7 @@ export default function ExplainPanel({ routeResult, vehicle }: Props) {
             <select
               value={selectedSpeaker}
               onChange={(e) => setSelectedSpeaker(e.target.value)}
-              className="bg-[#0e1219] text-xs text-slate-300 font-mono border border-[#1e2535] rounded-lg px-2 py-1 outline-none hidden sm:block"
+              className="bg-[#F8FAFC] text-xs text-[#172033] font-mono border border-[#CBD5E1] rounded-lg px-2 py-1 outline-none hidden sm:block"
             >
               <option value="meera">Speaker: Meera</option>
               <option value="pavithra">Speaker: Pavithra</option>
@@ -300,7 +300,7 @@ export default function ExplainPanel({ routeResult, vehicle }: Props) {
           </div>
         </div>
 
-        <p className="text-xs text-slate-300 mb-3">
+        <p className="text-xs text-[#64748B] mb-3">
           Ask questions naturally in Hindi, English, or Hinglish. Grounded in authoritative physics results.
         </p>
 
@@ -319,7 +319,7 @@ export default function ExplainPanel({ routeResult, vehicle }: Props) {
                 setConversePrompt(prompt);
                 handleConverseSubmit(prompt);
               }}
-              className="text-[10px] bg-[#181e2b] hover:bg-[#202738] text-slate-300 hover:text-white px-2.5 py-1 rounded-lg border border-[#273244] font-mono transition-all text-left"
+              className="text-[10px] bg-[#F8FAFC] hover:bg-white text-[#334155] hover:text-[#172033] px-2.5 py-1 rounded-lg border border-[#E2E8F0] hover:border-orange-400 font-mono transition-all text-left shadow-sm"
             >
               "{prompt}"
             </button>
@@ -327,7 +327,7 @@ export default function ExplainPanel({ routeResult, vehicle }: Props) {
         </div>
 
         {/* Input box with Mic recording */}
-        <div className="flex items-center gap-2 bg-[#0a0e14] border border-[#1e2535] rounded-xl p-1.5 focus-within:border-orange-500/50">
+        <div className="flex items-center gap-2 bg-[#F8FAFC] border border-[#CBD5E1] rounded-xl p-1.5 focus-within:bg-white focus-within:border-orange-500">
           <input
             type="text"
             value={conversePrompt}
@@ -336,7 +336,7 @@ export default function ExplainPanel({ routeResult, vehicle }: Props) {
               if (e.key === 'Enter') handleConverseSubmit();
             }}
             placeholder="Type your question or click mic to speak..."
-            className="bg-transparent text-xs text-white placeholder-slate-500 flex-1 px-2.5 outline-none font-sans"
+            className="bg-transparent text-xs text-[#172033] placeholder-slate-400 flex-1 px-2.5 outline-none font-sans"
           />
 
           {/* Voice Record Button */}
@@ -346,7 +346,7 @@ export default function ExplainPanel({ routeResult, vehicle }: Props) {
             className={`p-2 rounded-lg font-mono text-xs transition-all flex items-center gap-1 ${
               isRecording
                 ? 'bg-rose-500 text-white animate-pulse'
-                : 'bg-[#181e2b] hover:bg-[#222a3a] text-orange-400 border border-[#262f42]'
+                : 'bg-white hover:bg-[#F1F4F8] text-[#F97316] border border-[#CBD5E1]'
             }`}
             title={isRecording ? 'Click to stop recording' : 'Click to speak via Sarvam STT'}
           >
@@ -359,7 +359,7 @@ export default function ExplainPanel({ routeResult, vehicle }: Props) {
             type="button"
             onClick={() => handleConverseSubmit()}
             disabled={converseLoading || !conversePrompt.trim()}
-            className="p-2 bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white rounded-lg transition-all"
+            className="p-2 bg-[#F97316] hover:bg-[#EA580C] disabled:opacity-50 text-white rounded-lg transition-all shadow-sm"
           >
             <Send size={14} />
           </button>
@@ -367,34 +367,34 @@ export default function ExplainPanel({ routeResult, vehicle }: Props) {
 
         {/* Loading Spinner */}
         {converseLoading && (
-          <div className="flex items-center gap-2 text-xs text-orange-400 mt-2 font-mono">
-            <div className="w-3.5 h-3.5 border-2 border-orange-400 border-t-transparent rounded-full animate-spin" />
+          <div className="flex items-center gap-2 text-xs text-orange-600 mt-2 font-mono">
+            <div className="w-3.5 h-3.5 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
             <span>PROCESSING GROUNDED SIMULATION...</span>
           </div>
         )}
 
         {/* Conversational Result Display */}
         {converseResponse && (
-          <div className="mt-3 bg-[#0a0e14] p-3 rounded-xl border border-[#1e2535] text-xs">
+          <div className="mt-3 bg-[#F8FAFC] p-3 rounded-xl border border-[#E2E8F0] text-xs">
             <div className="flex items-center justify-between mb-1.5 flex-wrap gap-2">
               <div className="flex items-center gap-1.5">
-                <MessageSquare size={13} className="text-orange-400" />
-                <span className="font-bold text-orange-400 font-mono text-[11px]">
+                <MessageSquare size={13} className="text-[#F97316]" />
+                <span className="font-bold text-orange-700 font-mono text-[11px]">
                   INTENT: {converseResponse.intent}
                 </span>
               </div>
               {converseResponse.feasibility_status && (
                 <span className={`text-[10px] font-mono px-2 py-0.5 rounded-full border font-bold ${
                   converseResponse.feasible 
-                    ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
-                    : 'bg-rose-500/15 text-rose-400 border-rose-500/30'
+                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                    : 'bg-rose-50 text-rose-700 border-rose-200'
                 }`}>
                   {converseResponse.feasibility_status}
                 </span>
               )}
             </div>
 
-            <p className="text-slate-200 leading-relaxed font-sans mb-2">
+            <p className="text-[#172033] leading-relaxed font-sans mb-2">
               {converseResponse.explanation}
             </p>
 
@@ -402,9 +402,9 @@ export default function ExplainPanel({ routeResult, vehicle }: Props) {
               <button
                 type="button"
                 onClick={() => playBase64Audio(converseResponse.audio_b64)}
-                className="bg-[#181e2b] hover:bg-[#202738] text-slate-200 border border-[#262f42] text-[11px] flex items-center gap-1.5 py-1 px-2.5 rounded-lg font-mono font-bold transition-all"
+                className="bg-white hover:bg-[#F8FAFC] text-[#172033] border border-[#CBD5E1] text-[11px] flex items-center gap-1.5 py-1 px-2.5 rounded-lg font-mono font-bold transition-all shadow-sm"
               >
-                <Volume2 size={13} className="text-orange-400" />
+                <Volume2 size={13} className="text-[#F97316]" />
                 <span>LISTEN TO SPEECH RESPONSE</span>
               </button>
             )}
@@ -412,21 +412,21 @@ export default function ExplainPanel({ routeResult, vehicle }: Props) {
         )}
 
         {/* Direct Route Explanation fallback button */}
-        <div className="mt-4 pt-3 border-t border-[#1e2535] flex items-center justify-between flex-wrap gap-2">
+        <div className="mt-4 pt-3 border-t border-[#F1F4F8] flex items-center justify-between flex-wrap gap-2">
           <button
             type="button"
             onClick={handleExplain}
             disabled={ttsLoading}
-            className="bg-[#181e2b] hover:bg-[#222a3a] text-slate-300 hover:text-white border border-[#262f42] font-semibold text-xs flex items-center gap-1.5 py-2 px-3 rounded-xl transition-all disabled:opacity-50 font-mono"
+            className="bg-[#F8FAFC] hover:bg-white text-[#172033] border border-[#CBD5E1] font-semibold text-xs flex items-center gap-1.5 py-2 px-3 rounded-xl transition-all disabled:opacity-50 font-mono shadow-sm"
           >
             {ttsLoading ? (
               <>
-                <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                <div className="w-3 h-3 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
                 <span>EXPLAINING ROUTE...</span>
               </>
             ) : (
               <>
-                <Sparkles size={13} className="text-orange-400" />
+                <Sparkles size={13} className="text-[#F97316]" />
                 <span>EXPLAIN ACTIVE ROUTE</span>
               </>
             )}
@@ -436,23 +436,23 @@ export default function ExplainPanel({ routeResult, vehicle }: Props) {
             <button
               type="button"
               onClick={() => playBase64Audio(ttsAudio)}
-              className="bg-[#181e2b] hover:bg-[#202738] text-slate-200 hover:text-white border border-[#262f42] text-xs flex items-center gap-1.5 py-1.5 px-3 rounded-xl font-mono font-bold transition-all"
+              className="bg-white hover:bg-[#F8FAFC] text-[#172033] border border-[#CBD5E1] text-xs flex items-center gap-1.5 py-1.5 px-3 rounded-xl font-mono font-bold transition-all shadow-sm"
             >
-              <Volume2 size={13} className="text-orange-400" />
+              <Volume2 size={13} className="text-[#F97316]" />
               <span>PLAY ROUTE AUDIO</span>
             </button>
           )}
         </div>
 
         {ttsError && (
-          <p className="text-xs text-amber-300 mt-2 font-mono bg-[#1c1610] p-2 rounded-xl border border-orange-500/30">
+          <p className="text-xs text-amber-800 mt-2 font-mono bg-amber-50 p-2 rounded-xl border border-amber-200">
             Notice: {ttsError}
           </p>
         )}
 
         {explainText && !converseResponse && (
-          <div className="mt-2.5 bg-[#0a0e14] p-2.5 rounded-xl border border-[#1e2535] text-xs text-slate-300 leading-relaxed font-sans">
-            <span className="font-bold text-orange-400 block mb-0.5 font-mono">[AUDIO SCRIPT]:</span>
+          <div className="mt-2.5 bg-[#F8FAFC] p-2.5 rounded-xl border border-[#E2E8F0] text-xs text-[#334155] leading-relaxed font-sans">
+            <span className="font-bold text-orange-700 block mb-0.5 font-mono">[AUDIO SCRIPT]:</span>
             {explainText}
           </div>
         )}

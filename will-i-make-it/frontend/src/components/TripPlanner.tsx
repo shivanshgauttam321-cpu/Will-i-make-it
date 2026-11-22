@@ -335,18 +335,18 @@ export default function TripPlanner({
 
   return (
     <div className="flex flex-col gap-4">
-      {/* 1. Journey Corridor Card (Meitriya Dark Charcoal Style) */}
-      <div className="bg-[#121620] border border-[#222938] rounded-2xl p-4 shadow-xl">
-        <div className="flex items-center justify-between mb-3 border-b border-[#1e2535] pb-2.5">
+      {/* 1. Journey Corridor Card */}
+      <div className="bg-white border border-[#E2E8F0] rounded-2xl p-4 shadow-sm">
+        <div className="flex items-center justify-between mb-3 border-b border-[#F1F4F8] pb-2.5">
           <div className="flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-orange-500" />
-            <h3 className="text-xs font-bold font-mono tracking-wider text-slate-200 uppercase">
+            <span className="w-2 h-2 rounded-full bg-[#F97316]" />
+            <h3 className="text-xs font-bold font-mono tracking-wider text-[#172033] uppercase">
               JOURNEY CONFIGURATION
             </h3>
           </div>
           
           {/* Mode Switcher */}
-          <div className="flex bg-[#0e1219] p-0.5 rounded-xl border border-[#222938] text-xs">
+          <div className="flex bg-[#F1F4F8] p-0.5 rounded-xl border border-[#E2E8F0] text-xs">
             <button
               type="button"
               onClick={() => {
@@ -355,8 +355,8 @@ export default function TripPlanner({
               }}
               className={`px-3 py-1 rounded-lg font-medium transition-all ${
                 routeMode === 'custom'
-                  ? 'bg-orange-500 text-white shadow-sm'
-                  : 'text-slate-400 hover:text-slate-200'
+                  ? 'bg-white text-[#172033] shadow-sm font-semibold'
+                  : 'text-[#64748B] hover:text-[#172033]'
               }`}
             >
               Custom Route
@@ -370,8 +370,8 @@ export default function TripPlanner({
               }}
               className={`px-3 py-1 rounded-lg font-medium transition-all ${
                 routeMode === 'preset'
-                  ? 'bg-orange-500 text-white shadow-sm'
-                  : 'text-slate-400 hover:text-slate-200'
+                  ? 'bg-white text-[#172033] shadow-sm font-semibold'
+                  : 'text-[#64748B] hover:text-[#172033]'
               }`}
             >
               Preset Corridors
@@ -383,8 +383,8 @@ export default function TripPlanner({
           <div className="space-y-3">
             {/* Start Origin Input */}
             <div className="relative">
-              <label className="text-[11px] font-mono font-medium text-slate-400 flex items-center gap-1.5 mb-1.5">
-                <span className="w-4 h-4 rounded-full bg-cyan-500 text-slate-950 text-[10px] font-black flex items-center justify-center">A</span>
+              <label className="text-[11px] font-mono font-medium text-[#64748B] flex items-center gap-1.5 mb-1.5">
+                <span className="w-4 h-4 rounded-full bg-sky-500 text-white text-[10px] font-black flex items-center justify-center">A</span>
                 START ORIGIN
               </label>
               <div className="relative">
@@ -399,14 +399,14 @@ export default function TripPlanner({
                     setShowOriginMenu(true);
                   }}
                   placeholder="e.g. Connaught Place, New Delhi or Mumbai BKC"
-                  className="w-full bg-[#0a0e14] border border-[#242c3d] rounded-xl pl-9 pr-3 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-orange-500 font-medium transition-colors"
+                  className="w-full bg-[#F8FAFC] border border-[#CBD5E1] rounded-xl pl-9 pr-3 py-2.5 text-xs text-[#172033] placeholder-slate-400 focus:bg-white focus:outline-none focus:border-orange-500 font-medium transition-colors"
                 />
-                <Search size={14} className="absolute left-3 top-3 text-slate-500 pointer-events-none" />
+                <Search size={14} className="absolute left-3 top-3 text-slate-400 pointer-events-none" />
               </div>
 
               {/* Origin Autocomplete Suggestions */}
               {showOriginMenu && originSuggestions.length > 0 && (
-                <div className="absolute left-0 right-0 top-full mt-1 bg-[#121620] border border-[#2c374b] rounded-xl shadow-2xl py-1 z-50 max-h-48 overflow-y-auto">
+                <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-[#E2E8F0] rounded-xl shadow-xl py-1 z-50 max-h-48 overflow-y-auto">
                   {originSuggestions.map((item, idx) => (
                     <button
                       key={idx}
@@ -417,13 +417,13 @@ export default function TripPlanner({
                         setOriginText(item.name);
                         setShowOriginMenu(false);
                       }}
-                      className="w-full text-left px-3 py-2 text-xs text-slate-200 hover:bg-[#1c2333] flex items-center justify-between border-b border-[#1a2130] last:border-0"
+                      className="w-full text-left px-3 py-2 text-xs text-[#172033] hover:bg-[#F8FAFC] flex items-center justify-between border-b border-[#F1F4F8] last:border-0"
                     >
                       <div className="truncate pr-2">
-                        <span className="font-medium block truncate text-slate-100">{item.name}</span>
-                        {item.type && <span className="text-[10px] text-cyan-400 font-mono">{item.type}</span>}
+                        <span className="font-medium block truncate text-[#172033]">{item.name}</span>
+                        {item.type && <span className="text-[10px] text-sky-600 font-mono">{item.type}</span>}
                       </div>
-                      <span className="text-[10px] text-slate-500 font-mono shrink-0">
+                      <span className="text-[10px] text-slate-400 font-mono shrink-0">
                         {item.lat.toFixed(2)}, {item.lng.toFixed(2)}
                       </span>
                     </button>
@@ -438,7 +438,7 @@ export default function TripPlanner({
                 type="button"
                 onClick={handleSwapLocations}
                 title="Swap Origin and Destination"
-                className="p-1.5 rounded-full bg-[#181e2b] hover:bg-[#222938] border border-[#2c374b] text-slate-300 hover:text-orange-400 transition-all shadow-sm active:scale-95"
+                className="p-1.5 rounded-full bg-[#F1F4F8] hover:bg-[#E2E8F0] border border-[#CBD5E1] text-[#475569] hover:text-orange-600 transition-all shadow-sm active:scale-95"
               >
                 <ArrowUpDown size={13} />
               </button>
@@ -446,8 +446,8 @@ export default function TripPlanner({
 
             {/* Destination Input */}
             <div className="relative">
-              <label className="text-[11px] font-mono font-medium text-slate-400 flex items-center gap-1.5 mb-1.5">
-                <span className="w-4 h-4 rounded-full bg-orange-500 text-slate-950 text-[10px] font-black flex items-center justify-center">B</span>
+              <label className="text-[11px] font-mono font-medium text-[#64748B] flex items-center gap-1.5 mb-1.5">
+                <span className="w-4 h-4 rounded-full bg-[#F97316] text-white text-[10px] font-black flex items-center justify-center">B</span>
                 DESTINATION
               </label>
               <div className="relative">
@@ -462,14 +462,14 @@ export default function TripPlanner({
                     setShowDestMenu(true);
                   }}
                   placeholder="e.g. Jaipur, Agra, Goa, Pune, Chennai..."
-                  className="w-full bg-[#0a0e14] border border-[#242c3d] rounded-xl pl-9 pr-3 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-orange-500 font-medium transition-colors"
+                  className="w-full bg-[#F8FAFC] border border-[#CBD5E1] rounded-xl pl-9 pr-3 py-2.5 text-xs text-[#172033] placeholder-slate-400 focus:bg-white focus:outline-none focus:border-orange-500 font-medium transition-colors"
                 />
-                <MapPin size={14} className="absolute left-3 top-3 text-orange-400 pointer-events-none" />
+                <MapPin size={14} className="absolute left-3 top-3 text-[#F97316] pointer-events-none" />
               </div>
 
               {/* Destination Autocomplete Suggestions */}
               {showDestMenu && destSuggestions.length > 0 && (
-                <div className="absolute left-0 right-0 top-full mt-1 bg-[#121620] border border-[#2c374b] rounded-xl shadow-2xl py-1 z-50 max-h-48 overflow-y-auto">
+                <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-[#E2E8F0] rounded-xl shadow-xl py-1 z-50 max-h-48 overflow-y-auto">
                   {destSuggestions.map((item, idx) => (
                     <button
                       key={idx}
@@ -480,13 +480,13 @@ export default function TripPlanner({
                         setDestText(item.name);
                         setShowDestMenu(false);
                       }}
-                      className="w-full text-left px-3 py-2 text-xs text-slate-200 hover:bg-[#1c2333] flex items-center justify-between border-b border-[#1a2130] last:border-0"
+                      className="w-full text-left px-3 py-2 text-xs text-[#172033] hover:bg-[#F8FAFC] flex items-center justify-between border-b border-[#F1F4F8] last:border-0"
                     >
                       <div className="truncate pr-2">
-                        <span className="font-medium block truncate text-slate-100">{item.name}</span>
-                        {item.type && <span className="text-[10px] text-orange-400 font-mono">{item.type}</span>}
+                        <span className="font-medium block truncate text-[#172033]">{item.name}</span>
+                        {item.type && <span className="text-[10px] text-orange-600 font-mono">{item.type}</span>}
                       </div>
-                      <span className="text-[10px] text-slate-500 font-mono shrink-0">
+                      <span className="text-[10px] text-slate-400 font-mono shrink-0">
                         {item.lat.toFixed(2)}, {item.lng.toFixed(2)}
                       </span>
                     </button>
@@ -495,9 +495,9 @@ export default function TripPlanner({
               )}
             </div>
 
-            {/* Quick One-Click Indian Corridors Pills (Meitriya Pill Tag Style) */}
+            {/* Quick One-Click Indian Corridors Pills */}
             <div className="pt-1.5">
-              <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-400 block mb-1.5">
+              <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-[#64748B] block mb-1.5">
                 POPULAR QUICK CORRIDORS:
               </span>
               <div className="flex flex-wrap gap-1.5">
@@ -506,10 +506,10 @@ export default function TripPlanner({
                     key={c.label}
                     type="button"
                     onClick={() => selectQuickCorridor(c)}
-                    className="text-[11px] font-sans px-2.5 py-1 rounded-lg bg-[#181e2b] hover:bg-[#202738] text-slate-300 hover:text-white border border-[#252e3f] hover:border-orange-500/50 transition-all flex items-center gap-1.5"
+                    className="text-[11px] font-sans px-2.5 py-1 rounded-lg bg-[#F8FAFC] hover:bg-white text-[#334155] hover:text-[#172033] border border-[#E2E8F0] hover:border-orange-400 shadow-sm transition-all flex items-center gap-1.5"
                   >
                     <span>{c.label}</span>
-                    <span className="text-[10px] text-orange-400 font-mono font-medium">{c.dist}</span>
+                    <span className="text-[10px] text-[#F97316] font-mono font-semibold">{c.dist}</span>
                   </button>
                 ))}
               </div>
@@ -523,7 +523,7 @@ export default function TripPlanner({
                 playCockpitClick();
                 onRouteSelect(e.target.value);
               }}
-              className="w-full bg-[#0a0e14] border border-[#242c3d] rounded-xl px-3.5 py-2.5 text-xs text-slate-100 font-medium focus:outline-none focus:border-orange-500 transition-colors cursor-pointer"
+              className="w-full bg-[#F8FAFC] border border-[#CBD5E1] rounded-xl px-3.5 py-2.5 text-xs text-[#172033] font-medium focus:bg-white focus:outline-none focus:border-orange-500 transition-colors cursor-pointer"
             >
               {demoRoutes.length === 0 && <option value="MUMBAI_PUNE">Loading routes...</option>}
               {demoRoutes.map(r => (
@@ -531,7 +531,7 @@ export default function TripPlanner({
               ))}
             </select>
             {activeRoute && (
-              <p className="text-xs text-slate-400 mt-2 leading-relaxed">
+              <p className="text-xs text-[#64748B] mt-2 leading-relaxed">
                 {activeRoute.description}
               </p>
             )}
@@ -539,30 +539,30 @@ export default function TripPlanner({
         )}
       </div>
 
-      {/* 2. Vehicle Hardware Profile Card (Meitriya Style with SVG silhouette) */}
-      <div className="bg-[#121620] border border-[#222938] rounded-2xl p-4 shadow-xl">
-        <div className="flex items-center justify-between mb-3 border-b border-[#1e2535] pb-2.5">
+      {/* 2. Vehicle Hardware Profile Card */}
+      <div className="bg-white border border-[#E2E8F0] rounded-2xl p-4 shadow-sm">
+        <div className="flex items-center justify-between mb-3 border-b border-[#F1F4F8] pb-2.5">
           <div className="flex items-center gap-2">
-            <Car size={15} className="text-orange-400" />
-            <h3 className="text-xs font-bold font-mono tracking-wider text-slate-200 uppercase">
+            <Car size={15} className="text-orange-500" />
+            <h3 className="text-xs font-bold font-mono tracking-wider text-[#172033] uppercase">
               VEHICLE HARDWARE PROFILE
             </h3>
           </div>
-          <span className="text-xs text-orange-400 font-mono font-bold">
+          <span className="text-xs text-orange-600 font-mono font-bold">
             {vehicle.battery_capacity_kwh} kWh Pack
           </span>
         </div>
 
         {/* Selected Vehicle Visual Card */}
-        <div className="bg-[#0e1219] border border-[#1e2535] rounded-xl p-3 mb-3 flex items-center justify-between gap-3">
+        <div className="bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl p-3 mb-3 flex items-center justify-between gap-3">
           <div className="min-w-0">
-            <span className="text-[10px] text-slate-500 font-mono uppercase tracking-wider block">CURRENT MODEL</span>
-            <h4 className="text-sm font-bold text-white truncate">{currentVehiclePreset.name}</h4>
+            <span className="text-[10px] text-[#64748B] font-mono uppercase tracking-wider block">CURRENT MODEL</span>
+            <h4 className="text-sm font-bold text-[#172033] truncate">{currentVehiclePreset.name}</h4>
             <div className="flex items-center gap-2 mt-1">
-              <span className="text-[10px] bg-orange-500/10 text-orange-300 border border-orange-500/20 px-1.5 py-0.5 rounded font-mono">
+              <span className="text-[10px] bg-orange-50 text-orange-700 border border-orange-200 px-1.5 py-0.5 rounded font-mono font-medium">
                 {vehicle.connector_types.join(', ')}
               </span>
-              <span className="text-[10px] text-slate-400 font-mono">
+              <span className="text-[10px] text-[#64748B] font-mono">
                 0-80% ~35 min DC
               </span>
             </div>
@@ -570,68 +570,74 @@ export default function TripPlanner({
           <img 
             src="/assets/vehicles/ev-vehicle.svg" 
             alt="EV Vehicle Silhouette" 
-            className="w-24 h-12 object-contain shrink-0 opacity-80" 
+            width="80"
+            height="40"
+            className="w-20 h-10 object-contain shrink-0" 
+            loading="eager"
           />
         </div>
 
-        {/* Vehicle Preset Pills */}
-        <div className="grid grid-cols-2 gap-1.5 mb-3">
-          {INDIAN_EV_PRESETS.map(p => {
-            const isSelected = selectedPresetName === p.name;
-            return (
-              <button
-                key={p.name}
-                type="button"
-                onClick={() => selectPreset(p.name)}
-                className={`text-left px-2.5 py-2 rounded-xl text-xs transition-all border ${
-                  isSelected 
-                    ? 'bg-orange-500/15 border-orange-500/60 text-white font-semibold shadow-sm' 
-                    : 'bg-[#181e2b] border-[#222a3a] text-slate-300 hover:bg-[#202738] hover:border-slate-600'
-                }`}
-              >
-                <div className="flex items-center justify-between">
-                  <span className="truncate">{p.shortName}</span>
-                  {isSelected && <Check size={12} className="text-orange-400 shrink-0" />}
-                </div>
-                <span className="text-[10px] text-slate-400 truncate block mt-0.5 font-mono">
-                  {p.profile.battery_capacity_kwh} kWh
-                </span>
-              </button>
-            );
-          })}
+        {/* Vehicle Preset Selector (Compact Dropdown / Pills) */}
+        <div className="mb-3">
+          <label className="text-[10px] text-[#64748B] block mb-1.5 font-mono uppercase">SWITCH EV MODEL</label>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
+            {INDIAN_EV_PRESETS.map(p => {
+              const isSelected = selectedPresetName === p.name;
+              return (
+                <button
+                  key={p.name}
+                  type="button"
+                  onClick={() => selectPreset(p.name)}
+                  className={`text-left px-2 py-1.5 rounded-xl text-xs transition-all border ${
+                    isSelected 
+                      ? 'bg-orange-50 border-orange-400 text-[#172033] font-bold shadow-sm' 
+                      : 'bg-[#F8FAFC] border-[#E2E8F0] text-[#475569] hover:bg-white hover:border-slate-300'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="truncate">{p.shortName}</span>
+                    {isSelected && <Check size={12} className="text-[#F97316] shrink-0" />}
+                  </div>
+                  <span className="text-[10px] text-[#64748B] truncate block mt-0.5 font-mono">
+                    {p.profile.battery_capacity_kwh} kWh
+                  </span>
+                </button>
+              );
+            })}
+          </div>
         </div>
 
         {/* Battery Capacity & Reserve Inputs */}
-        <div className="grid grid-cols-2 gap-2 pt-1 border-t border-[#1e2535]">
-          <div className="bg-[#0e1219] rounded-xl p-2.5 border border-[#1e2535]">
-            <label className="text-[10px] text-slate-400 block mb-1 font-mono uppercase">BATTERY (kWh)</label>
+        <div className="grid grid-cols-2 gap-2 pt-2 border-t border-[#F1F4F8]">
+          <div className="bg-[#F8FAFC] rounded-xl p-2.5 border border-[#E2E8F0]">
+            <label className="text-[10px] text-[#64748B] block mb-1 font-mono uppercase">BATTERY (kWh)</label>
             <input
               type="number" min={15} max={120} step={0.5}
               value={vehicle.battery_capacity_kwh}
               onChange={e => updateVehicle('battery_capacity_kwh', parseFloat(e.target.value) || 40)}
-              className="w-full bg-[#171c28] border border-[#273144] rounded-lg px-2.5 py-1 text-xs font-mono text-white focus:outline-none focus:border-orange-500"
+              className="w-full bg-white border border-[#CBD5E1] rounded-lg px-2.5 py-1 text-xs font-mono text-[#172033] focus:outline-none focus:border-orange-500"
             />
           </div>
-          <div className="bg-[#0e1219] rounded-xl p-2.5 border border-[#1e2535]">
-            <label className="text-[10px] text-slate-400 block mb-1 font-mono uppercase">MIN RESERVE (%)</label>
+          <div className="bg-[#F8FAFC] rounded-xl p-2.5 border border-[#E2E8F0]">
+            <label className="text-[10px] text-[#64748B] block mb-1 font-mono uppercase">MIN RESERVE (%)</label>
             <input
               type="number" min={5} max={25} step={1}
               value={vehicle.soc_reserve_pct}
               onChange={e => updateVehicle('soc_reserve_pct', parseFloat(e.target.value) || 10)}
-              className="w-full bg-[#171c28] border border-[#273144] rounded-lg px-2.5 py-1 text-xs font-mono text-white focus:outline-none focus:border-orange-500"
+              className="w-full bg-white border border-[#CBD5E1] rounded-lg px-2.5 py-1 text-xs font-mono text-[#172033] focus:outline-none focus:border-orange-500"
             />
           </div>
         </div>
       </div>
 
       {/* 3. Starting State of Charge (SoC) Slider */}
-      <div className="bg-[#121620] border border-[#222938] rounded-2xl p-4 shadow-xl">
+      <div className="bg-white border border-[#E2E8F0] rounded-2xl p-4 shadow-sm">
         <div className="flex items-center justify-between mb-2">
-          <label className="text-xs font-mono font-bold tracking-wider text-slate-200 flex items-center gap-1.5 uppercase">
-            <BatteryCharging size={14} className="text-orange-400" />
+          <label className="text-xs font-mono font-bold tracking-wider text-[#172033] flex items-center gap-1.5 uppercase">
+            <BatteryCharging size={15} className="text-orange-500" />
             STARTING STATE OF CHARGE (SOC)
           </label>
-          <span className="text-lg font-black font-mono tracking-tight text-orange-400">
+          <span className="text-2xl font-black font-mono tracking-tight text-[#F97316]">
             {vehicle.soc_start_pct}%
           </span>
         </div>
@@ -641,9 +647,9 @@ export default function TripPlanner({
             type="range" min={15} max={100} step={1}
             value={vehicle.soc_start_pct}
             onChange={e => updateVehicle('soc_start_pct', parseFloat(e.target.value))}
-            className="w-full cursor-pointer h-2 bg-[#0e1219] rounded-lg"
+            className="w-full cursor-pointer h-2 bg-[#F1F4F8] rounded-lg accent-[#F97316]"
           />
-          <div className="flex justify-between text-[10px] text-slate-500 font-mono">
+          <div className="flex justify-between text-[10px] text-[#64748B] font-mono">
             <span>15% (Critical)</span>
             <span>50% (Nominal)</span>
             <span>80% (Daily)</span>
@@ -653,33 +659,33 @@ export default function TripPlanner({
       </div>
 
       {/* 4. Ambient Climate & Cabin Thermal Management */}
-      <div className="bg-[#121620] border border-[#222938] rounded-2xl p-4 shadow-xl">
-        <div className="flex items-center justify-between mb-2.5 border-b border-[#1e2535] pb-2">
+      <div className="bg-white border border-[#E2E8F0] rounded-2xl p-4 shadow-sm">
+        <div className="flex items-center justify-between mb-2.5 border-b border-[#F1F4F8] pb-2">
           <div className="flex items-center gap-1.5">
-            <Thermometer size={14} className="text-orange-400" />
-            <h3 className="text-xs font-bold font-mono tracking-wider text-slate-200 uppercase">
+            <Thermometer size={15} className="text-orange-500" />
+            <h3 className="text-xs font-bold font-mono tracking-wider text-[#172033] uppercase">
               CABIN CLIMATE & THERMAL
             </h3>
           </div>
-          <span className="text-xs font-mono text-orange-400 font-bold">{ambientTemp}°C</span>
+          <span className="text-xs font-mono text-orange-600 font-bold">{ambientTemp}°C</span>
         </div>
 
-        {/* Quick Weather Presets (Meitriya Style) */}
+        {/* Quick Weather Presets */}
         <div className="grid grid-cols-3 gap-1.5 mb-3">
           <button
             type="button"
             onClick={() => applyWeatherPreset(42, 2.5)}
             className={`p-2 rounded-xl border text-left transition-all ${
               ambientTemp === 42
-                ? 'bg-orange-500/15 border-orange-500/50 text-white'
-                : 'bg-[#181e2b] border-[#222a3a] text-slate-300 hover:bg-[#202738]'
+                ? 'bg-orange-50 border-orange-400 text-orange-950 font-semibold shadow-sm'
+                : 'bg-[#F8FAFC] border-[#E2E8F0] text-[#475569] hover:bg-white hover:border-slate-300'
             }`}
           >
-            <div className="flex items-center gap-1 text-[11px] font-bold text-orange-400 font-mono">
+            <div className="flex items-center gap-1 text-[11px] font-bold text-orange-600 font-mono">
               <Sun size={12} />
               SUMMER
             </div>
-            <span className="text-[10px] text-slate-400 font-mono block mt-0.5">42°C · 2.5 kW</span>
+            <span className="text-[10px] text-[#64748B] font-mono block mt-0.5">42°C · 2.5 kW</span>
           </button>
           
           <button
@@ -687,15 +693,15 @@ export default function TripPlanner({
             onClick={() => applyWeatherPreset(28, 1.2)}
             className={`p-2 rounded-xl border text-left transition-all ${
               ambientTemp === 28
-                ? 'bg-teal-500/15 border-teal-500/50 text-white'
-                : 'bg-[#181e2b] border-[#222a3a] text-slate-300 hover:bg-[#202738]'
+                ? 'bg-emerald-50 border-emerald-400 text-emerald-950 font-semibold shadow-sm'
+                : 'bg-[#F8FAFC] border-[#E2E8F0] text-[#475569] hover:bg-white hover:border-slate-300'
             }`}
           >
-            <div className="flex items-center gap-1 text-[11px] font-bold text-teal-400 font-mono">
+            <div className="flex items-center gap-1 text-[11px] font-bold text-emerald-600 font-mono">
               <CloudRain size={12} />
               MODERATE
             </div>
-            <span className="text-[10px] text-slate-400 font-mono block mt-0.5">28°C · 1.2 kW</span>
+            <span className="text-[10px] text-[#64748B] font-mono block mt-0.5">28°C · 1.2 kW</span>
           </button>
           
           <button
@@ -703,82 +709,82 @@ export default function TripPlanner({
             onClick={() => applyWeatherPreset(8, 2.0)}
             className={`p-2 rounded-xl border text-left transition-all ${
               ambientTemp === 8
-                ? 'bg-cyan-500/15 border-cyan-500/50 text-white'
-                : 'bg-[#181e2b] border-[#222a3a] text-slate-300 hover:bg-[#202738]'
+                ? 'bg-sky-50 border-sky-400 text-sky-950 font-semibold shadow-sm'
+                : 'bg-[#F8FAFC] border-[#E2E8F0] text-[#475569] hover:bg-white hover:border-slate-300'
             }`}
           >
-            <div className="flex items-center gap-1 text-[11px] font-bold text-cyan-400 font-mono">
+            <div className="flex items-center gap-1 text-[11px] font-bold text-sky-600 font-mono">
               <Snowflake size={12} />
               WINTER
             </div>
-            <span className="text-[10px] text-slate-400 font-mono block mt-0.5">8°C · 2.0 kW</span>
+            <span className="text-[10px] text-[#64748B] font-mono block mt-0.5">8°C · 2.0 kW</span>
           </button>
         </div>
 
         {/* Sliders for Temp and AC Load */}
         <div className="space-y-3">
           <div>
-            <div className="flex justify-between text-[11px] text-slate-300 mb-1 font-mono">
-              <span className="text-slate-400">Ambient Temperature</span>
-              <span>{ambientTemp}°C</span>
+            <div className="flex justify-between text-[11px] text-[#334155] mb-1 font-mono">
+              <span className="text-[#64748B]">Ambient Temperature</span>
+              <span className="font-bold text-[#172033]">{ambientTemp}°C</span>
             </div>
             <input
               type="range" min={0} max={48} step={1}
               value={ambientTemp}
               onChange={e => setAmbientTemp(parseInt(e.target.value))}
-              className="w-full cursor-pointer h-1.5 bg-[#0e1219] rounded-lg"
+              className="w-full cursor-pointer h-1.5 bg-[#F1F4F8] rounded-lg accent-[#F97316]"
             />
           </div>
 
           <div>
-            <div className="flex justify-between text-[11px] text-slate-300 mb-1 font-mono">
-              <span className="text-slate-400">Cabin HVAC Power (AC / Heating)</span>
-              <span>{vehicle.ac_load_kw.toFixed(1)} kW</span>
+            <div className="flex justify-between text-[11px] text-[#334155] mb-1 font-mono">
+              <span className="text-[#64748B]">Cabin HVAC Power (AC / Heating)</span>
+              <span className="font-bold text-[#172033]">{vehicle.ac_load_kw.toFixed(1)} kW</span>
             </div>
             <input
               type="range" min={0} max={3.5} step={0.1}
               value={vehicle.ac_load_kw}
               onChange={e => updateVehicle('ac_load_kw', parseFloat(e.target.value))}
-              className="w-full cursor-pointer h-1.5 bg-[#0e1219] rounded-lg"
+              className="w-full cursor-pointer h-1.5 bg-[#F1F4F8] rounded-lg accent-[#F97316]"
             />
           </div>
         </div>
       </div>
 
       {/* 5. Collapsible Advanced Physics & Confidence Target */}
-      <div className="bg-[#121620] border border-[#222938] rounded-2xl p-3.5 shadow-xl">
+      <div className="bg-white border border-[#E2E8F0] rounded-2xl p-3.5 shadow-sm">
         <button
           type="button"
           onClick={() => {
             playCockpitClick();
             setShowAdvanced(!showAdvanced);
           }}
-          className="flex items-center justify-between w-full text-xs font-mono font-medium text-slate-300 hover:text-white"
+          className="flex items-center justify-between w-full text-xs font-mono font-medium text-[#334155] hover:text-[#172033]"
         >
-          <span className="flex items-center gap-1.5">
-            <Sliders size={13} className="text-orange-400" />
+          <span className="flex items-center gap-1.5 font-semibold">
+            <Sliders size={13} className="text-orange-500" />
             PAYLOAD, CONFIDENCE & PHYSICAL CONSTANTS
           </span>
-          <span className="text-[10px] text-slate-500 font-mono">{showAdvanced ? '▲ COLLAPSE' : '▼ EXPAND'}</span>
+          <span className="text-[10px] text-[#64748B] font-mono">{showAdvanced ? '▲ COLLAPSE' : '▼ EXPAND'}</span>
         </button>
 
         {showAdvanced && (
-          <div className="grid grid-cols-2 gap-2.5 pt-3 mt-2.5 border-t border-[#1e2535] text-xs">
+          <div className="grid grid-cols-2 gap-2.5 pt-3 mt-2.5 border-t border-[#F1F4F8] text-xs">
             <div>
-              <label className="text-[10px] text-slate-400 block mb-1 font-mono uppercase">PAYLOAD (KG)</label>
+              <label className="text-[10px] text-[#64748B] block mb-1 font-mono uppercase">PAYLOAD (KG)</label>
               <input
                 type="number" min={0} max={500} step={10}
                 value={vehicle.payload_kg}
                 onChange={e => updateVehicle('payload_kg', parseFloat(e.target.value) || 0)}
-                className="w-full bg-[#0e1219] border border-[#262f42] rounded-lg px-2.5 py-1 text-xs font-mono text-white"
+                className="w-full bg-[#F8FAFC] border border-[#CBD5E1] rounded-lg px-2.5 py-1 text-xs font-mono text-[#172033]"
               />
             </div>
             <div>
-              <label className="text-[10px] text-slate-400 block mb-1 font-mono uppercase">CONFIDENCE TARGET</label>
+              <label className="text-[10px] text-[#64748B] block mb-1 font-mono uppercase">CONFIDENCE TARGET</label>
               <select
                 value={confidence}
                 onChange={e => setConfidence(parseFloat(e.target.value))}
-                className="w-full bg-[#0e1219] border border-[#262f42] rounded-lg px-2.5 py-1 text-xs text-white font-mono cursor-pointer"
+                className="w-full bg-[#F8FAFC] border border-[#CBD5E1] rounded-lg px-2.5 py-1 text-xs text-[#172033] font-mono cursor-pointer"
               >
                 <option value={0.90}>P90 (90% Conservative)</option>
                 <option value={0.95}>P95 (95% Ultra Conservative)</option>
@@ -787,25 +793,25 @@ export default function TripPlanner({
               </select>
             </div>
             <div>
-              <label className="text-[10px] text-slate-400 block mb-1 font-mono uppercase">DRIVETRAIN EFFICIENCY</label>
+              <label className="text-[10px] text-[#64748B] block mb-1 font-mono uppercase">DRIVETRAIN EFFICIENCY</label>
               <input
                 type="number" min={0.7} max={0.98} step={0.01}
                 value={vehicle.drivetrain_efficiency}
                 onChange={e => updateVehicle('drivetrain_efficiency', parseFloat(e.target.value))}
-                className="w-full bg-[#0e1219] border border-[#262f42] rounded-lg px-2.5 py-1 text-xs font-mono text-white"
+                className="w-full bg-[#F8FAFC] border border-[#CBD5E1] rounded-lg px-2.5 py-1 text-xs font-mono text-[#172033]"
               />
             </div>
             <div>
-              <label className="text-[10px] text-slate-400 block mb-1 font-mono uppercase">REGEN EFFICIENCY</label>
+              <label className="text-[10px] text-[#64748B] block mb-1 font-mono uppercase">REGEN EFFICIENCY</label>
               <input
                 type="number" min={0.4} max={0.9} step={0.05}
                 value={vehicle.regen_efficiency}
                 onChange={e => updateVehicle('regen_efficiency', parseFloat(e.target.value))}
-                className="w-full bg-[#0e1219] border border-[#262f42] rounded-lg px-2.5 py-1 text-xs font-mono text-white"
+                className="w-full bg-[#F8FAFC] border border-[#CBD5E1] rounded-lg px-2.5 py-1 text-xs font-mono text-[#172033]"
               />
             </div>
             <div className="col-span-2 pt-1">
-              <label className="text-[10px] text-slate-400 block mb-1.5 font-mono uppercase">COMPATIBLE CONNECTORS</label>
+              <label className="text-[10px] text-[#64748B] block mb-1.5 font-mono uppercase">COMPATIBLE CONNECTORS</label>
               <div className="flex flex-wrap gap-1.5">
                 {['CCS2', 'Type2_AC', 'CHAdeMO', 'Bharat_DC', 'Bharat_AC'].map(ct => {
                   const has = vehicle.connector_types.includes(ct);
@@ -822,8 +828,8 @@ export default function TripPlanner({
                       }}
                       className={`px-2.5 py-1 rounded-lg text-xs font-mono transition-all border ${
                         has 
-                          ? 'bg-orange-500/20 text-orange-300 border-orange-500/50 font-semibold' 
-                          : 'bg-[#181e2b] text-slate-400 border-[#252e3f] hover:border-slate-600'
+                          ? 'bg-orange-50 text-orange-700 border-orange-300 font-semibold' 
+                          : 'bg-[#F8FAFC] text-[#64748B] border-[#E2E8F0] hover:border-slate-300'
                       }`}
                     >
                       {ct}
@@ -836,12 +842,12 @@ export default function TripPlanner({
         )}
       </div>
 
-      {/* 6. Main Action Trigger Button (Bold Orange Meitriya Style) */}
+      {/* 6. Main Action Trigger Button */}
       <button 
         type="button"
         onClick={handlePlan} 
         disabled={isLoading}
-        className="w-full bg-gradient-to-r from-orange-500 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white font-bold py-3.5 px-4 rounded-xl shadow-lg shadow-orange-950/40 active:scale-[0.99] transition-all flex items-center justify-center gap-2 text-xs font-mono tracking-wider uppercase disabled:opacity-50"
+        className="w-full bg-[#F97316] hover:bg-[#EA580C] text-white font-bold py-3.5 px-4 rounded-xl shadow-md active:scale-[0.99] transition-all flex items-center justify-center gap-2 text-xs font-mono tracking-wider uppercase disabled:opacity-50"
       >
         {isLoading ? (
           <>
@@ -858,9 +864,9 @@ export default function TripPlanner({
 
       {/* Outage Warning Banner if any chargers disabled */}
       {disabledChargers.length > 0 && (
-        <div className="bg-[#1a1512] border border-orange-800/40 rounded-xl p-3 flex items-start gap-2.5">
-          <div className="w-2 h-2 rounded-full bg-orange-400 mt-1 shrink-0 animate-ping" />
-          <div className="text-xs text-orange-200 font-mono">
+        <div className="bg-orange-50 border border-orange-200 rounded-xl p-3 flex items-start gap-2.5">
+          <div className="w-2 h-2 rounded-full bg-orange-500 mt-1 shrink-0 animate-ping" />
+          <div className="text-xs text-orange-900 font-mono">
             <span className="font-bold">{disabledChargers.length} charging station(s)</span> marked offline.
             Routes automatically avoid these stations.
           </div>

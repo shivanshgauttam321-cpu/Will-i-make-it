@@ -7,14 +7,14 @@ echo.
 
 cd /d "%~dp0"
 
-:: Detect Python executable with fastapi installed
+:: Prioritize project virtual environment
 set "PYTHON_CMD="
-if exist "%USERPROFILE%\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe" (
-    set "PYTHON_CMD=%USERPROFILE%\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe"
-) else if exist ".venv\Scripts\python.exe" (
+if exist ".venv\Scripts\python.exe" (
     set "PYTHON_CMD=.venv\Scripts\python.exe"
 ) else if exist "venv\Scripts\python.exe" (
     set "PYTHON_CMD=venv\Scripts\python.exe"
+) else if exist "%USERPROFILE%\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe" (
+    set "PYTHON_CMD=%USERPROFILE%\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe"
 ) else if exist "%USERPROFILE%\anaconda3\python.exe" (
     set "PYTHON_CMD=%USERPROFILE%\anaconda3\python.exe"
 ) else (

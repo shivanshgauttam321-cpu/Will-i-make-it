@@ -76,6 +76,9 @@ export const simulateTrip = (payload: {
 export const getSarvamStatus = () =>
   api.get('/sarvam/status').then(r => r.data);
 
+export const getSarvamHealth = () =>
+  api.get('/sarvam/health').then(r => r.data);
+
 export const explainRoute = (routeResult: unknown, languageCode?: string) =>
   api.post('/sarvam/explain', { route_result: routeResult, language_code: languageCode ?? 'hi-IN' })
     .then(r => r.data);
@@ -91,8 +94,46 @@ export const converseWithSarvam = (payload: {
   speaker?: string;
 }) => api.post('/sarvam/converse', payload).then(r => r.data);
 
-export const textToSpeech = (text: string, language_code = 'hi-IN', speaker = 'meera') =>
+export const textToSpeech = (text: string, language_code = 'hi-IN', speaker = 'simran') =>
   api.post('/sarvam/tts', { text, language_code, speaker }).then(r => r.data);
 
 export const speechToText = (audio_b64: string, language_code = 'hi-IN') =>
   api.post('/sarvam/stt', { audio_b64, language_code }).then(r => r.data);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// NEO4J GRAPH INTELLIGENCE & TRANSACTIONAL OUTBOX APIS
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const getNeo4jHealth = () =>
+  api.get('/neo4j/health').then(r => r.data);
+
+export const getNeo4jStats = () =>
+  api.get('/neo4j/stats').then(r => r.data);
+
+export const getNeo4jGraph = (params?: { limit?: number; entity_types?: string; environment?: string }) =>
+  api.get('/neo4j/graph', { params }).then(r => r.data);
+
+export const getNeo4jNode = (nodeId: string) =>
+  api.get(`/neo4j/nodes/${encodeURIComponent(nodeId)}`).then(r => r.data);
+
+export const getNeo4jSyncStatus = () =>
+  api.get('/neo4j/sync/status').then(r => r.data);
+
+export const getNeo4jSyncEvents = (params?: { limit?: number; status?: string }) =>
+  api.get('/neo4j/sync/events', { params }).then(r => r.data);
+
+export const retryNeo4jEvent = (eventId: string) =>
+  api.post(`/neo4j/sync/retry/${encodeURIComponent(eventId)}`).then(r => r.data);
+
+export const triggerNeo4jSync = () =>
+  api.post('/neo4j/sync/trigger').then(r => r.data);
+
+export const createDemoInfrastructure = (payload?: any) =>
+  api.post('/neo4j/demo/create-sample', payload || {}).then(r => r.data);
+
+export const updateDemoStation = (payload?: any) =>
+  api.post('/neo4j/demo/update-sample', payload || {}).then(r => r.data);
+
+export const cleanupDemoData = () =>
+  api.post('/neo4j/demo/cleanup').then(r => r.data);
+

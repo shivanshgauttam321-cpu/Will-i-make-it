@@ -15,6 +15,7 @@ import os
 import math
 import logging
 import re
+from datetime import datetime, timezone
 from typing import Optional, List, Dict, Any, Tuple
 from dotenv import load_dotenv
 
@@ -183,16 +184,26 @@ def init_schema() -> bool:
         return False
 
     constraints_and_indexes = [
-        # Uniqueness constraints
+        # Uniqueness constraints for all domain entities
         "CREATE CONSTRAINT road_node_id IF NOT EXISTS FOR (n:RoadNode) REQUIRE n.node_id IS UNIQUE",
         "CREATE CONSTRAINT charger_station_id IF NOT EXISTS FOR (c:ChargingStation) REQUIRE c.station_id IS UNIQUE",
         "CREATE CONSTRAINT legacy_charger_id IF NOT EXISTS FOR (c:Charger) REQUIRE c.charger_id IS UNIQUE",
         "CREATE CONSTRAINT city_id IF NOT EXISTS FOR (ct:City) REQUIRE ct.city_id IS UNIQUE",
         "CREATE CONSTRAINT operator_id IF NOT EXISTS FOR (op:ChargingOperator) REQUIRE op.operator_id IS UNIQUE",
         "CREATE CONSTRAINT connector_id IF NOT EXISTS FOR (conn:ChargingConnector) REQUIRE conn.connector_id IS UNIQUE",
-        # Indexes for fast proximity queries
+        "CREATE CONSTRAINT region_id IF NOT EXISTS FOR (r:Region) REQUIRE r.region_id IS UNIQUE",
+        "CREATE CONSTRAINT road_id IF NOT EXISTS FOR (rd:Road) REQUIRE rd.road_id IS UNIQUE",
+        "CREATE CONSTRAINT highway_id IF NOT EXISTS FOR (h:Highway) REQUIRE h.highway_id IS UNIQUE",
+        "CREATE CONSTRAINT road_segment_id IF NOT EXISTS FOR (rs:RoadSegment) REQUIRE rs.segment_id IS UNIQUE",
+        "CREATE CONSTRAINT junction_id IF NOT EXISTS FOR (j:Junction) REQUIRE j.junction_id IS UNIQUE",
+        "CREATE CONSTRAINT vehicle_id IF NOT EXISTS FOR (v:Vehicle) REQUIRE v.vehicle_id IS UNIQUE",
+        "CREATE CONSTRAINT battery_config_id IF NOT EXISTS FOR (bc:BatteryConfiguration) REQUIRE bc.config_id IS UNIQUE",
+        "CREATE CONSTRAINT report_id IF NOT EXISTS FOR (cr:ChargingReport) REQUIRE cr.report_id IS UNIQUE",
+        # Indexes for fast lookup, proximity, and provenance
         "CREATE INDEX road_node_coords IF NOT EXISTS FOR (n:RoadNode) ON (n.lat, n.lng)",
         "CREATE INDEX charger_coords IF NOT EXISTS FOR (c:ChargingStation) ON (c.lat, c.lng)",
+        "CREATE INDEX station_env IF NOT EXISTS FOR (c:ChargingStation) ON (c.environment)",
+        "CREATE INDEX station_provenance IF NOT EXISTS FOR (c:ChargingStation) ON (c.provenance)",
     ]
 
     try:
@@ -511,3 +522,391 @@ def plan_with_neo4j(req) -> Optional[Any]:
     except Exception as e:
         logger.error(f"[Neo4j] Graph routing query error: {e}")
         return None
+
+
+# ==============================================================================
+# LIVE GRAPH INTELLIGENCE & TRANSACTIONAL SYNCHRONIZATION API
+# ==============================================================================
+
+ALLOWED_LABELS = {
+    "City", "Region", "Road", "Highway", "RoadNode", "RoadSegment",
+    "Junction", "ChargingStation", "ChargingConnector", "ChargingOperator",
+    "ChargingReport", "Vehicle", "BatteryConfiguration", "Charger"
+}
+
+ALLOWED_REL_TYPES = {
+    "CONNECTED_TO", "HAS_SEGMENT", "CONTAINS", "LOCATED_IN",
+    "HAS_CHARGING_STATION", "HAS_CONNECTOR", "OPERATED_BY",
+    "SUPPORTS", "COMPATIBLE_WITH", "HAS_BATTERY_CONFIGURATION",
+    "REPORTS_STATUS", "LOCATED_NEAR", "ROAD_SEGMENT"
+}
+
+
+def _get_pk_field(entity_type: str) -> str:
+    mapping = {
+        "City": "city_id",
+        "Region": "region_id",
+        "Road": "road_id",
+        "Highway": "highway_id",
+        "RoadNode": "node_id",
+        "RoadSegment": "segment_id",
+        "Junction": "junction_id",
+        "ChargingStation": "station_id",
+        "ChargingConnector": "connector_id",
+        "ChargingOperator": "operator_id",
+        "ChargingReport": "report_id",
+        "Vehicle": "vehicle_id",
+        "BatteryConfiguration": "config_id",
+    }
+    return mapping.get(entity_type, "station_id")
+
+
+def get_graph_statistics() -> Dict[str, Any]:
+    """
+    Query real Neo4j graph statistics (node counts by label, relationship counts by type).
+    Returns graceful offline status when Neo4j is disabled or unconfigured.
+    """
+    if not is_enabled():
+        return {
+            "status": "DISABLED",
+            "connected": False,
+            "database": os.environ.get("NEO4J_DATABASE", "neo4j"),
+            "total_nodes": 0,
+            "total_relationships": 0,
+            "nodes_by_type": {},
+            "relationships_by_type": {},
+            "message": "Neo4j is disabled by default (NEO4J_ENABLED=false)",
+        }
+
+    driver = get_driver()
+    if not driver:
+        return {
+            "status": "DISCONNECTED",
+            "connected": False,
+            "database": os.environ.get("NEO4J_DATABASE", "neo4j"),
+            "total_nodes": 0,
+            "total_relationships": 0,
+            "nodes_by_type": {},
+            "relationships_by_type": {},
+            "message": get_last_error() or "Unable to establish Neo4j driver connection",
+        }
+
+    try:
+        with driver.session() as session:
+            # Total nodes
+            tot_nodes_res = session.run("MATCH (n) RETURN count(n) AS cnt").single()
+            total_nodes = tot_nodes_res["cnt"] if tot_nodes_res else 0
+
+            # Total relationships
+            tot_rels_res = session.run("MATCH ()-[r]->() RETURN count(r) AS cnt").single()
+            total_relationships = tot_rels_res["cnt"] if tot_rels_res else 0
+
+            # Breakdown by node label
+            nodes_by_type = {}
+            for record in session.run("MATCH (n) UNWIND labels(n) AS lbl RETURN lbl, count(*) AS cnt ORDER BY cnt DESC"):
+                nodes_by_type[record["lbl"]] = record["cnt"]
+
+            # Breakdown by relationship type
+            rels_by_type = {}
+            for record in session.run("MATCH ()-[r]->() RETURN type(r) AS typ, count(*) AS cnt ORDER BY cnt DESC"):
+                rels_by_type[record["typ"]] = record["cnt"]
+
+            return {
+                "status": "CONNECTED",
+                "connected": True,
+                "database": os.environ.get("NEO4J_DATABASE", "neo4j"),
+                "total_nodes": total_nodes,
+                "total_relationships": total_relationships,
+                "nodes_by_type": nodes_by_type,
+                "relationships_by_type": rels_by_type,
+                "message": "Neo4j graph statistics retrieved successfully",
+            }
+    except Exception as e:
+        logger.warning(f"[Neo4j] Failed to retrieve graph stats: {e}")
+        return {
+            "status": "DEGRADED",
+            "connected": False,
+            "database": os.environ.get("NEO4J_DATABASE", "neo4j"),
+            "total_nodes": 0,
+            "total_relationships": 0,
+            "nodes_by_type": {},
+            "relationships_by_type": {},
+            "message": f"Query execution failed: {str(e)}",
+        }
+
+
+def get_graph_elements(
+    limit: int = 150,
+    entity_types: Optional[List[str]] = None,
+    environment: Optional[str] = None,
+) -> Dict[str, Any]:
+    """
+    Retrieve nodes and connecting relationships for live graph visualization.
+    Applies strict pagination, bounds, and entity filtering.
+    """
+    if not is_enabled():
+        return {
+            "status": "DISABLED",
+            "nodes": [],
+            "relationships": [],
+            "total_nodes": 0,
+            "total_relationships": 0,
+            "message": "Neo4j is disabled (NEO4J_ENABLED=false)",
+        }
+
+    driver = get_driver()
+    if not driver:
+        return {
+            "status": "DISCONNECTED",
+            "nodes": [],
+            "relationships": [],
+            "total_nodes": 0,
+            "total_relationships": 0,
+            "message": get_last_error() or "Neo4j is disconnected",
+        }
+
+    clamped_limit = max(1, min(limit, 300))
+
+    try:
+        with driver.session() as session:
+            # Query nodes
+            where_clauses = []
+            params: Dict[str, Any] = {"limit": clamped_limit}
+
+            if environment:
+                where_clauses.append("n.environment = $env")
+                params["env"] = environment.upper()
+
+            if entity_types:
+                clean_types = [t for t in entity_types if t in ALLOWED_LABELS]
+                if clean_types:
+                    type_checks = " OR ".join(f"'{t}' IN labels(n)" for t in clean_types)
+                    where_clauses.append(f"({type_checks})")
+
+            where_str = f"WHERE {' AND '.join(where_clauses)}" if where_clauses else ""
+            node_query = f"""
+                MATCH (n)
+                {where_str}
+                RETURN n, labels(n) AS labels, elementId(n) AS eid
+                LIMIT $limit
+            """
+
+            nodes_map = {}
+            for r in session.run(node_query, **params):
+                node_data = dict(r["n"])
+                labels = r["labels"]
+                primary_label = labels[0] if labels else "Node"
+                if "Charger" in labels and "ChargingStation" in labels:
+                    primary_label = "ChargingStation"
+
+                node_id = (
+                    node_data.get("station_id")
+                    or node_data.get("charger_id")
+                    or node_data.get("node_id")
+                    or node_data.get("city_id")
+                    or node_data.get("operator_id")
+                    or node_data.get("connector_id")
+                    or node_data.get("segment_id")
+                    or node_data.get("id")
+                    or str(r["eid"])
+                )
+
+                nodes_map[node_id] = {
+                    "id": str(node_id),
+                    "element_id": str(r["eid"]),
+                    "label": primary_label,
+                    "labels": labels,
+                    "name": node_data.get("name") or node_data.get("station_name") or str(node_id),
+                    "properties": node_data,
+                    "provenance": node_data.get("provenance", "SIMULATED"),
+                    "environment": node_data.get("environment", "DEMO"),
+                }
+
+            # Query relationships between the collected nodes
+            relationships = []
+            if nodes_map:
+                id_list = list(nodes_map.keys())
+                rel_query = """
+                    MATCH (a)-[r]->(b)
+                    WHERE (coalesce(a.station_id, a.node_id, a.city_id, a.operator_id, a.connector_id, a.segment_id, a.id) IN $id_list)
+                      AND (coalesce(b.station_id, b.node_id, b.city_id, b.operator_id, b.connector_id, b.segment_id, b.id) IN $id_list)
+                    RETURN coalesce(a.station_id, a.node_id, a.city_id, a.operator_id, a.connector_id, a.segment_id, a.id) AS src_id,
+                           coalesce(b.station_id, b.node_id, b.city_id, b.operator_id, b.connector_id, b.segment_id, b.id) AS dst_id,
+                           type(r) AS rel_type, properties(r) AS rel_props, elementId(r) AS rel_eid
+                    LIMIT 400
+                """
+                for r in session.run(rel_query, id_list=id_list):
+                    relationships.append({
+                        "id": str(r["rel_eid"]),
+                        "source": str(r["src_id"]),
+                        "target": str(r["dst_id"]),
+                        "type": str(r["rel_type"]),
+                        "properties": dict(r["rel_props"]),
+                    })
+
+            return {
+                "status": "CONNECTED",
+                "nodes": list(nodes_map.values()),
+                "relationships": relationships,
+                "total_nodes": len(nodes_map),
+                "total_relationships": len(relationships),
+                "message": "Graph elements queried successfully",
+            }
+    except Exception as e:
+        logger.error(f"[Neo4j] Failed to fetch graph elements: {e}")
+        return {
+            "status": "DEGRADED",
+            "nodes": [],
+            "relationships": [],
+            "total_nodes": 0,
+            "total_relationships": 0,
+            "message": f"Graph query error: {str(e)}",
+        }
+
+
+def get_node_by_id(node_id: str) -> Optional[Dict[str, Any]]:
+    """Retrieve full property payload and relationship degree for a single node."""
+    driver = get_driver()
+    if not driver:
+        return None
+
+    try:
+        with driver.session() as session:
+            query = """
+                MATCH (n)
+                WHERE coalesce(n.station_id, n.node_id, n.city_id, n.operator_id, n.connector_id, n.segment_id, n.id) = $nid
+                OPTIONAL MATCH (n)-[out_r]->(target)
+                OPTIONAL MATCH (source)-[in_r]->(n)
+                RETURN n, labels(n) AS labels,
+                       collect(DISTINCT {type: type(out_r), target: coalesce(target.station_id, target.node_id, target.name, target.id)}) AS out_rels,
+                       collect(DISTINCT {type: type(in_r), source: coalesce(source.station_id, source.node_id, source.name, source.id)}) AS in_rels
+            """
+            res = session.run(query, nid=node_id).single()
+            if not res or not res["n"]:
+                return None
+
+            node_data = dict(res["n"])
+            return {
+                "id": node_id,
+                "labels": res["labels"],
+                "properties": node_data,
+                "outgoing_relationships": [r for r in res["out_rels"] if r["type"] is not None],
+                "incoming_relationships": [r for r in res["in_rels"] if r["type"] is not None],
+            }
+    except Exception as e:
+        logger.error(f"[Neo4j] get_node_by_id error: {e}")
+        return None
+
+
+def sync_entity_to_graph(payload: Dict[str, Any], operation: str) -> bool:
+    """
+    Idempotent transactional graph synchronizer.
+    Applies MERGE-based upserts and safe entity deletions.
+    """
+    driver = get_driver()
+    if not driver:
+        return False
+
+    entity_type = payload.get("entity_type")
+    entity_id = payload.get("entity_id")
+
+    if not entity_type or not entity_id:
+        logger.error("[Neo4j Sync] Missing entity_type or entity_id in outbox payload")
+        return False
+
+    label = entity_type if entity_type in ALLOWED_LABELS else "AppEntity"
+    pk_field = _get_pk_field(label)
+
+    try:
+        with driver.session() as session:
+            if operation.upper() == "DELETE":
+                # Safe detach delete for target entity
+                del_query = f"""
+                    MATCH (n:{label})
+                    WHERE n.{pk_field} = $eid OR n.id = $eid
+                    DETACH DELETE n
+                """
+                session.run(del_query, eid=entity_id)
+                logger.info(f"[Neo4j Sync] Deleted node {label}:{entity_id}")
+                return True
+
+            # CREATE or UPDATE
+            props = dict(payload.get("properties", {}))
+            props["id"] = entity_id
+            props[pk_field] = entity_id
+            props["name"] = payload.get("name", entity_id)
+            props["provenance"] = payload.get("provenance", "SIMULATED")
+            props["environment"] = payload.get("environment", "DEMO")
+            props["last_synchronized_at"] = datetime.now(timezone.utc).isoformat()
+
+            # Ensure lat/lng are numeric floats if present
+            if "lat" in props and props["lat"] is not None:
+                props["lat"] = float(props["lat"])
+            if "lng" in props and props["lng"] is not None:
+                props["lng"] = float(props["lng"])
+            if "latitude" in props and props["latitude"] is not None:
+                props["latitude"] = float(props["latitude"])
+                props["lat"] = float(props["latitude"])
+            if "longitude" in props and props["longitude"] is not None:
+                props["longitude"] = float(props["longitude"])
+                props["lng"] = float(props["longitude"])
+
+            # 1. Upsert target entity node
+            upsert_query = f"""
+                MERGE (n:{label} {{{pk_field}: $eid}})
+                SET n += $props, n.id = $eid
+            """
+            session.run(upsert_query, eid=entity_id, props=props)
+
+            # If ChargingStation, also mirror Charger label for backward compatibility
+            if label == "ChargingStation":
+                session.run("MATCH (n:ChargingStation {station_id: $eid}) SET n:Charger, n.charger_id = $eid", eid=entity_id)
+
+            # 2. Reconcile relationships
+            relationships = payload.get("relationships", [])
+            for rel in relationships:
+                to_id = rel.get("to_id")
+                rel_type = rel.get("type", "CONNECTED_TO")
+                rel_props = dict(rel.get("properties", {}))
+                rel_props["created_at"] = datetime.now(timezone.utc).isoformat()
+
+                if to_id and rel_type in ALLOWED_REL_TYPES:
+                    rel_cypher = f"""
+                        MATCH (a {{{pk_field}: $eid}})
+                        MATCH (b)
+                        WHERE coalesce(b.station_id, b.charger_id, b.node_id, b.city_id, b.operator_id, b.connector_id, b.segment_id, b.id) = $to_id
+                        MERGE (a)-[r:{rel_type}]->(b)
+                        SET r += $rprops
+                    """
+                    session.run(rel_cypher, eid=entity_id, to_id=to_id, rprops=rel_props)
+
+            logger.info(f"[Neo4j Sync] Successfully synced {label}:{entity_id} ({operation})")
+            return True
+    except Exception as e:
+        logger.error(f"[Neo4j Sync] Error syncing {label}:{entity_id}: {e}")
+        raise e
+
+
+def purge_demo_graph() -> int:
+    """
+    Safely purge ONLY entities created with environment = 'DEMO' or provenance = 'SIMULATED'.
+    Never deletes production infrastructure.
+    """
+    driver = get_driver()
+    if not driver:
+        return 0
+
+    try:
+        with driver.session() as session:
+            res = session.run("""
+                MATCH (n)
+                WHERE n.environment = 'DEMO'
+                DETACH DELETE n
+                RETURN count(n) AS deleted_count
+            """).single()
+            cnt = res["deleted_count"] if res else 0
+            logger.info(f"[Neo4j] Purged {cnt} demo graph nodes.")
+            return cnt
+    except Exception as e:
+        logger.error(f"[Neo4j] Purge demo graph error: {e}")
+        return 0

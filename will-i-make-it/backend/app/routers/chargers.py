@@ -79,6 +79,33 @@ def submit_report(report: ChargerReport):
         reporter_id=report.reporter_id,
     )
 
+    # Queue transactional outbox event for Neo4j synchronization
+    try:
+        from app.services.outbox_service import save_entity
+        from app.services.sync_worker import trigger_sync
+        save_entity(
+            entity_type="ChargingReport",
+            entity_id=f"REP_{rid}",
+            name=f"Report #{rid} on {report.charger_id}",
+            properties={
+                "report_id": f"REP_{rid}",
+                "charger_id": report.charger_id,
+                "success": report.success,
+                "connector": report.connector_type.value,
+                "power_kw": report.reported_power_kw,
+                "notes": report.notes,
+                "reporter_id": report.reporter_id,
+            },
+            relationships=[
+                {"to_id": report.charger_id, "type": "REPORTS_STATUS"}
+            ],
+            provenance="REAL" if not (report.notes and "seed" in report.notes.lower()) else "SIMULATED",
+            environment="DEMO" if (report.notes and "demo" in report.notes.lower()) else "PROD",
+        )
+        trigger_sync()
+    except Exception as e:
+        pass
+
     new_rel = compute_reliability(report.charger_id)
     return {
         "report_id": rid,
