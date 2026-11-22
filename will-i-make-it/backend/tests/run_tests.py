@@ -120,11 +120,13 @@ def test_suite():
     assert_test(unknown_rel["score"] == 0.5, "Unknown charger defaults honestly to 0.5 prior (not assumed 100% operational)", f"Got {unknown_rel['score']}")
     assert_test(unknown_rel["freshness_hours"] is None, "Unknown charger has None freshness", f"Got {unknown_rel['freshness_hours']}")
 
-    delhi_rel = compute_reliability("CHR_DL_001")
+    from datetime import datetime, timezone
+    seed_ref_time = datetime(2026, 10, 29, 12, 0, 0, tzinfo=timezone.utc)
+    delhi_rel = compute_reliability("CHR_DL_001", as_of=seed_ref_time)
     assert_test(delhi_rel["score"] >= 0.70, "Charger with positive seed history has score >= 0.70", f"Got {delhi_rel['score']}")
 
-    add_report("CHR_MH_003", False, "CCS2", None, "TEST: charger broke down", "test_user")
-    mh3_rel = compute_reliability("CHR_MH_003")
+    add_report("CHR_MH_003", False, "CCS2", None, "TEST: charger broke down", "test_user", reported_at=seed_ref_time.isoformat())
+    mh3_rel = compute_reliability("CHR_MH_003", as_of=seed_ref_time)
     assert_test(mh3_rel["score"] < 0.60, "Charger with failure report reflects decreased reliability", f"Got {mh3_rel['score']}")
 
     print("\n--- 6. Testing Charger Failure Demo & Rerouting ---")

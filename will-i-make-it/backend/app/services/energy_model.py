@@ -124,7 +124,19 @@ def predict_segment(
     d_m = seg.distance_km * 1000.0      # distance in metres
     v = _speed_ms(seg.avg_speed_kmh)    # speed in m/s
     m = vehicle.vehicle_mass_kg + vehicle.payload_kg
-    grad = seg.gradient_pct / 100.0     # dimensionless rise/run
+
+    # Check elevation gradient availability
+    is_grad_unknown = (seg.gradient_pct is None or getattr(seg, "gradient_status", None) == "UNKNOWN")
+    is_grad_clamped = getattr(seg, "gradient_is_clamped", False)
+
+    if is_grad_unknown:
+        # Elevation data is UNKNOWN.
+        # Computational assumption: baseline 0.0% gradient is used for nominal P50 calculation.
+        # This is recorded explicitly as an unverified computational assumption, NOT an observation.
+        # gradient_unknown is flagged True. No arbitrary variance inflation is claimed without empirical basis.
+        grad = 0.0
+    else:
+        grad = (seg.gradient_pct or 0.0) / 100.0     # dimensionless rise/run
 
     # -- Rolling resistance (kJ) --
     f_roll = vehicle.rolling_resistance * m * G
@@ -195,6 +207,8 @@ def predict_segment(
         net_kwh=round(net_kwh, 4),
         net_kwh_p90=round(net_kwh_p90, 4),
         soc_after_pct=round(soc_after, 2),
+        gradient_unknown=is_grad_unknown,
+        gradient_clamped=is_grad_clamped,
     )
     return result, soc_after
 

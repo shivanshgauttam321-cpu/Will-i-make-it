@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 160" fill="none">
+  <!-- Base pedestal -->
+  <rect x="25" y="142" width="70" height="10" rx="3" fill="#181e2b" stroke="#2c374b" stroke-width="1.5"/>
+  <!-- Main Pillar Body -->
+  <rect x="35" y="25" width="50" height="117" rx="8" fill="#121620" stroke="#2c374b" stroke-width="2"/>
+  <!-- Status Screen -->
+  <rect x="42" y="36" width="36" height="28" rx="4" fill="#0d1117" stroke="#262e3d" stroke-width="1.5"/>
+  <!-- Screen Lightning Icon -->
+  <path d="M62 42L56 50H61L58 58L66 49H61L62 42Z" fill="#f97316"/>
+  <!-- LED Power indicator bar -->
+  <rect x="42" y="72" width="36" height="4" rx="2" fill="#06b6d4"/>
+  <!-- Plug Port -->
+  <circle cx="60" cy="94" r="8" fill="#181e2b" stroke="#f97316" stroke-width="1.5"/>
+  <!-- Cable on the side -->
+  <path d="M78 85 C95 85 96 115 85 125 C80 130 75 130 70 125" stroke="#f97316" stroke-width="3" stroke-linecap="round"/>
+</svg>

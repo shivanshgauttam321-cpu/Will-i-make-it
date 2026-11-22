@@ -1,0 +1,324 @@
+[
+  {
+    "corridor_id": "MUMBAI_PUNE",
+    "name": "Mumbai to Pune",
+    "origin": {
+      "lat": 19.076,
+      "lng": 72.8777,
+      "name": "Mumbai"
+    },
+    "destination": {
+      "lat": 18.5204,
+      "lng": 73.8567,
+      "name": "Pune"
+    },
+    "total_distance_km": 148.0,
+    "segments": [
+      {
+        "segment_id": "MP_01",
+        "name": "Mumbai Urban \u2013 Khopoli",
+        "distance_km": 45,
+        "avg_speed_kmh": 40,
+        "gradient_pct": 0.0,
+        "road_type": "urban"
+      },
+      {
+        "segment_id": "MP_02",
+        "name": "Khopoli \u2013 Khandala Ghat (uphill)",
+        "distance_km": 25,
+        "avg_speed_kmh": 35,
+        "gradient_pct": 4.5,
+        "road_type": "rural"
+      },
+      {
+        "segment_id": "MP_03",
+        "name": "Khandala \u2013 Lonavala (flat)",
+        "distance_km": 8,
+        "avg_speed_kmh": 60,
+        "gradient_pct": 0.2,
+        "road_type": "highway"
+      },
+      {
+        "segment_id": "MP_04",
+        "name": "Lonavala \u2013 Pune Expressway",
+        "distance_km": 55,
+        "avg_speed_kmh": 100,
+        "gradient_pct": -1.5,
+        "road_type": "highway"
+      },
+      {
+        "segment_id": "MP_05",
+        "name": "Pune Urban \u2013 Kharadi",
+        "distance_km": 15,
+        "avg_speed_kmh": 35,
+        "gradient_pct": 0.0,
+        "road_type": "urban"
+      }
+    ],
+    "vehicle_parameters": {
+      "battery_capacity_kwh": 40.0,
+      "vehicle_mass_kg": 1600.0,
+      "soc_start_pct": 90.0,
+      "soc_reserve_pct": 15.0,
+      "aux_power_kw": 1.2,
+      "ambient_temp_c": 25.0,
+      "confidence_target": 0.9
+    }
+  },
+  {
+    "corridor_id": "DELHI_AGRA",
+    "name": "Delhi to Agra",
+    "origin": {
+      "lat": 28.5355,
+      "lng": 77.12,
+      "name": "Noida, Delhi NCR"
+    },
+    "destination": {
+      "lat": 27.1767,
+      "lng": 78.0081,
+      "name": "Agra"
+    },
+    "total_distance_km": 210.0,
+    "segments": [
+      {
+        "segment_id": "DA_01",
+        "name": "Noida \u2013 Greater Noida",
+        "distance_km": 28,
+        "avg_speed_kmh": 70,
+        "gradient_pct": 0.0,
+        "road_type": "highway"
+      },
+      {
+        "segment_id": "DA_02",
+        "name": "Greater Noida \u2013 Mathura (YE)",
+        "distance_km": 105,
+        "avg_speed_kmh": 110,
+        "gradient_pct": 0.0,
+        "road_type": "highway"
+      },
+      {
+        "segment_id": "DA_03",
+        "name": "Mathura \u2013 Agra (NH19)",
+        "distance_km": 55,
+        "avg_speed_kmh": 80,
+        "gradient_pct": 0.0,
+        "road_type": "highway"
+      },
+      {
+        "segment_id": "DA_04",
+        "name": "Agra Urban \u2013 Taj Mahal Area",
+        "distance_km": 22,
+        "avg_speed_kmh": 30,
+        "gradient_pct": 0.0,
+        "road_type": "urban"
+      }
+    ],
+    "vehicle_parameters": {
+      "battery_capacity_kwh": 40.0,
+      "vehicle_mass_kg": 1600.0,
+      "soc_start_pct": 95.0,
+      "soc_reserve_pct": 15.0,
+      "aux_power_kw": 1.2,
+      "ambient_temp_c": 25.0,
+      "confidence_target": 0.9
+    }
+  },
+  {
+    "corridor_id": "AHMEDABAD_SURAT",
+    "name": "Ahmedabad to Surat",
+    "origin": {
+      "lat": 23.0395,
+      "lng": 72.527,
+      "name": "Vastrapur, Ahmedabad"
+    },
+    "destination": {
+      "lat": 21.1702,
+      "lng": 72.8311,
+      "name": "Surat"
+    },
+    "total_distance_km": 265.0,
+    "segments": [
+      {
+        "segment_id": "AS_01",
+        "name": "Ahmedabad Urban",
+        "distance_km": 20,
+        "avg_speed_kmh": 40,
+        "gradient_pct": 0.0,
+        "road_type": "urban"
+      },
+      {
+        "segment_id": "AS_02",
+        "name": "Ahmedabad \u2013 Vadodara (NH48)",
+        "distance_km": 90,
+        "avg_speed_kmh": 110,
+        "gradient_pct": 0.0,
+        "road_type": "highway"
+      },
+      {
+        "segment_id": "AS_03",
+        "name": "Vadodara \u2013 Bharuch",
+        "distance_km": 68,
+        "avg_speed_kmh": 100,
+        "gradient_pct": 0.0,
+        "road_type": "highway"
+      },
+      {
+        "segment_id": "AS_04",
+        "name": "Bharuch \u2013 Surat",
+        "distance_km": 75,
+        "avg_speed_kmh": 100,
+        "gradient_pct": 0.0,
+        "road_type": "highway"
+      },
+      {
+        "segment_id": "AS_05",
+        "name": "Surat Urban",
+        "distance_km": 12,
+        "avg_speed_kmh": 35,
+        "gradient_pct": 0.0,
+        "road_type": "urban"
+      }
+    ],
+    "vehicle_parameters": {
+      "battery_capacity_kwh": 40.0,
+      "vehicle_mass_kg": 1600.0,
+      "soc_start_pct": 90.0,
+      "soc_reserve_pct": 10.0,
+      "aux_power_kw": 1.2,
+      "ambient_temp_c": 25.0,
+      "confidence_target": 0.9
+    }
+  },
+  {
+    "corridor_id": "BENGALURU_MYSURU",
+    "name": "Bengaluru to Mysuru",
+    "origin": {
+      "lat": 12.9784,
+      "lng": 77.6408,
+      "name": "Indiranagar, Bengaluru"
+    },
+    "destination": {
+      "lat": 12.2958,
+      "lng": 76.6394,
+      "name": "Mysuru"
+    },
+    "total_distance_km": 143.0,
+    "segments": [
+      {
+        "segment_id": "BM_01",
+        "name": "Bengaluru Urban \u2013 Electronic City",
+        "distance_km": 18,
+        "avg_speed_kmh": 30,
+        "gradient_pct": 0.0,
+        "road_type": "urban"
+      },
+      {
+        "segment_id": "BM_02",
+        "name": "Electronic City \u2013 Channapatna",
+        "distance_km": 55,
+        "avg_speed_kmh": 90,
+        "gradient_pct": 1.2,
+        "road_type": "highway"
+      },
+      {
+        "segment_id": "BM_03",
+        "name": "Channapatna \u2013 Maddur",
+        "distance_km": 30,
+        "avg_speed_kmh": 85,
+        "gradient_pct": -0.8,
+        "road_type": "highway"
+      },
+      {
+        "segment_id": "BM_04",
+        "name": "Maddur \u2013 Mandya \u2013 Srirangapatna",
+        "distance_km": 30,
+        "avg_speed_kmh": 80,
+        "gradient_pct": 0.3,
+        "road_type": "highway"
+      },
+      {
+        "segment_id": "BM_05",
+        "name": "Srirangapatna \u2013 Mysuru City",
+        "distance_km": 10,
+        "avg_speed_kmh": 40,
+        "gradient_pct": 0.0,
+        "road_type": "urban"
+      }
+    ],
+    "vehicle_parameters": {
+      "battery_capacity_kwh": 30.0,
+      "vehicle_mass_kg": 1500.0,
+      "soc_start_pct": 85.0,
+      "soc_reserve_pct": 15.0,
+      "aux_power_kw": 1.2,
+      "ambient_temp_c": 25.0,
+      "confidence_target": 0.9
+    }
+  },
+  {
+    "corridor_id": "MUMBAI_PUNE_LOW_SOC",
+    "name": "Mumbai to Pune (Depleted Battery)",
+    "origin": {
+      "lat": 19.076,
+      "lng": 72.8777,
+      "name": "Mumbai"
+    },
+    "destination": {
+      "lat": 18.5204,
+      "lng": 73.8567,
+      "name": "Pune"
+    },
+    "total_distance_km": 148.0,
+    "segments": [
+      {
+        "segment_id": "MP_01",
+        "name": "Mumbai Urban \u2013 Khopoli",
+        "distance_km": 45,
+        "avg_speed_kmh": 40,
+        "gradient_pct": 0.0,
+        "road_type": "urban"
+      },
+      {
+        "segment_id": "MP_02",
+        "name": "Khopoli \u2013 Khandala Ghat (uphill)",
+        "distance_km": 25,
+        "avg_speed_kmh": 35,
+        "gradient_pct": 4.5,
+        "road_type": "rural"
+      },
+      {
+        "segment_id": "MP_03",
+        "name": "Khandala \u2013 Lonavala (flat)",
+        "distance_km": 8,
+        "avg_speed_kmh": 60,
+        "gradient_pct": 0.2,
+        "road_type": "highway"
+      },
+      {
+        "segment_id": "MP_04",
+        "name": "Lonavala \u2013 Pune Expressway",
+        "distance_km": 55,
+        "avg_speed_kmh": 100,
+        "gradient_pct": -1.5,
+        "road_type": "highway"
+      },
+      {
+        "segment_id": "MP_05",
+        "name": "Pune Urban \u2013 Kharadi",
+        "distance_km": 15,
+        "avg_speed_kmh": 35,
+        "gradient_pct": 0.0,
+        "road_type": "urban"
+      }
+    ],
+    "vehicle_parameters": {
+      "battery_capacity_kwh": 30.0,
+      "vehicle_mass_kg": 1500.0,
+      "soc_start_pct": 10.0,
+      "soc_reserve_pct": 15.0,
+      "aux_power_kw": 1.2,
+      "ambient_temp_c": 25.0,
+      "confidence_target": 0.9
+    }
+  }
+]
