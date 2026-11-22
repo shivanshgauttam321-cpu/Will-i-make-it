@@ -9,6 +9,7 @@ import ChargerPanel from './components/ChargerPanel';
 import ExplainPanel from './components/ExplainPanel';
 import RouteMap from './components/RouteMap';
 import EVCockpitBoot from './components/EVCockpitBoot';
+import Neo4jGraphMonitor from './components/Neo4jGraphMonitor';
 import { healthCheck, planRoute } from './utils/api';
 import { isAudioEnabled, setAudioEnabled, playCockpitClick } from './utils/audioService';
 import type { RoutePlanResponse, VehicleProfile } from './types/api';
@@ -227,8 +228,15 @@ export default function App() {
             </div>
           )}
 
-          {/* Dual-Column Main Workspace */}
-          <div className="flex-1 flex flex-col lg:flex-row min-h-0 overflow-y-auto lg:overflow-hidden p-3 sm:p-5 gap-4">
+          {/* Main Stage: Graph Monitor OR Dual-Column Map Workspace */}
+          {activeView === 'graph' ? (
+            <div className="flex-1 w-full h-full min-h-0 p-3 sm:p-5 overflow-hidden">
+              <div className="w-full h-full rounded-2xl overflow-hidden border border-[#1e2535] shadow-2xl">
+                <Neo4jGraphMonitor />
+              </div>
+            </div>
+          ) : (
+            <div className="flex-1 flex flex-col lg:flex-row min-h-0 overflow-y-auto lg:overflow-hidden p-3 sm:p-5 gap-4">
             {/* Left Control / Information Column (Scrollable) */}
             <div className="w-full lg:w-[420px] xl:w-[460px] 2xl:w-[480px] flex flex-col shrink-0 lg:overflow-y-auto pr-0 lg:pr-1 gap-4">
               {activeView === 'planner' && (
@@ -390,6 +398,7 @@ export default function App() {
               )}
             </div>
           </div>
+          )}
         </div>
       </div>
     </div>

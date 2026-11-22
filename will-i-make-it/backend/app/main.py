@@ -11,8 +11,10 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-from app.routers import health, energy, routes, chargers, trips, sarvam
+from app.routers import health, energy, routes, chargers, trips, sarvam, neo4j
 from app.services.charger_service import init_db
+from app.services.outbox_service import init_outbox_db
+from app.services.sync_worker import start_sync_worker, stop_sync_worker
 from app.services.neo4j_service import is_enabled, get_driver, seed_graph, close_driver
 
 
@@ -21,7 +23,11 @@ async def lifespan(app: FastAPI):
     # Startup
     print("[Startup] Initialising SQLite database...")
     init_db()
+    init_outbox_db()
     print("[Startup] SQLite ready.")
+
+    # Start background transactional outbox sync worker
+    start_sync_worker(interval_seconds=5.0)
 
     if is_enabled():
         print("[Startup] Neo4j is enabled (NEO4J_ENABLED=true) — attempting connection...")
@@ -40,6 +46,7 @@ async def lifespan(app: FastAPI):
     yield
     # Shutdown
     print("[Shutdown] Cleaning up...")
+    stop_sync_worker(timeout=3.0)
     close_driver()
 
 
@@ -83,6 +90,7 @@ app.include_router(routes.router)
 app.include_router(chargers.router)
 app.include_router(trips.router)
 app.include_router(sarvam.router)
+app.include_router(neo4j.router)
 
 
 @app.get("/")

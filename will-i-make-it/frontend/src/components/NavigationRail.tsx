@@ -4,7 +4,7 @@ import {
   Volume2, VolumeX, ShieldCheck, Database, Layers
 } from 'lucide-react';
 
-export type ActiveView = 'planner' | 'results' | 'energy' | 'chargers' | 'explain';
+export type ActiveView = 'planner' | 'results' | 'energy' | 'chargers' | 'explain' | 'graph';
 
 interface Props {
   activeView: ActiveView;
@@ -57,6 +57,12 @@ export default function NavigationRail({
       id: 'explain',
       label: 'Explain',
       icon: <Radio size={18} />,
+      enabled: true,
+    },
+    {
+      id: 'graph',
+      label: 'Graph',
+      icon: <Database size={18} />,
       enabled: true,
     },
   ];
