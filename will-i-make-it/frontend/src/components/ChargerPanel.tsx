@@ -175,7 +175,7 @@ export default function ChargerPanel({
         </div>
 
         {/* Filter Pills */}
-        <div className="flex gap-1.5 font-mono">
+        <div className="flex flex-wrap gap-1.5 font-mono">
           <button
             type="button"
             onClick={() => {

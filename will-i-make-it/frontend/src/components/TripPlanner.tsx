@@ -570,7 +570,10 @@ export default function TripPlanner({
           <img 
             src="/assets/vehicles/ev-vehicle.svg" 
             alt="EV Vehicle Silhouette" 
+            width="80"
+            height="40"
             className="w-20 h-10 object-contain shrink-0" 
+            loading="eager"
           />
         </div>
 

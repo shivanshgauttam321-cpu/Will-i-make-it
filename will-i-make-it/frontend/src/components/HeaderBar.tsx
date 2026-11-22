@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Database, AlertTriangle, RotateCcw, Activity, X, ShieldCheck, CheckCircle2, Globe, Cpu, Radio, ExternalLink } from 'lucide-react';
+import { Database, AlertTriangle, RotateCcw, Activity, X, ShieldCheck, CheckCircle2, Globe, Cpu, Radio, ExternalLink, Menu } from 'lucide-react';
 import { getProvidersStatus } from '../utils/api';
 
 interface Props {
@@ -10,6 +10,10 @@ interface Props {
   neo4jOk: boolean;
   neo4jDiagnostic?: string;
   onReplayIntro: () => void;
+  onOpenMobileMenu?: () => void;
+  onLogoClick?: () => void;
+  externalShowProvidersModal?: boolean;
+  onCloseExternalProvidersModal?: () => void;
 }
 
 interface ProviderItem {
@@ -31,16 +35,27 @@ export default function HeaderBar({
   neo4jOk,
   neo4jDiagnostic,
   onReplayIntro,
+  onOpenMobileMenu,
+  onLogoClick,
+  externalShowProvidersModal,
+  onCloseExternalProvidersModal,
 }: Props) {
   const [showProvidersModal, setShowProvidersModal] = useState(false);
   const [providersData, setProvidersData] = useState<any | null>(null);
   const [loadingProviders, setLoadingProviders] = useState(false);
 
+  const isModalOpen = showProvidersModal || !!externalShowProvidersModal;
+
+  const handleCloseModal = () => {
+    setShowProvidersModal(false);
+    if (onCloseExternalProvidersModal) onCloseExternalProvidersModal();
+  };
+
   useEffect(() => {
-    if (showProvidersModal && !providersData) {
+    if (isModalOpen && !providersData) {
       loadProviders();
     }
-  }, [showProvidersModal]);
+  }, [isModalOpen]);
 
   const loadProviders = () => {
     setLoadingProviders(true);
@@ -52,31 +67,62 @@ export default function HeaderBar({
 
   return (
     <>
-      <header className="border-b border-[#E2E8F0] bg-[#FFFFFF] px-4 sm:px-6 py-2.5 flex items-center justify-between gap-4 shrink-0 z-20 shadow-sm">
-        {/* Brand Title & Active Corridor Subtitle */}
-        <div className="flex items-center gap-3 min-w-0">
-          <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-sm sm:text-base font-bold tracking-tight text-[#172033] font-sans flex items-center gap-2">
-                WILL I MAKE IT?
-                <span className="text-[10px] bg-orange-50 text-orange-600 font-mono font-semibold px-2 py-0.5 rounded-full border border-orange-200">
-                  EV INTELLIGENCE
-                </span>
-              </h1>
+      <header className="border-b border-[#E2E8F0] bg-[#FFFFFF] px-3 sm:px-6 py-2.5 flex items-center justify-between gap-2 sm:gap-4 shrink-0 z-20 shadow-sm">
+        {/* Mobile Hamburger + Brand Title & Active Corridor Subtitle */}
+        <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+          {/* Hamburger Menu Button (visible on mobile / < lg) */}
+          <button
+            type="button"
+            onClick={onOpenMobileMenu}
+            aria-label="Open navigation menu"
+            className="lg:hidden p-2 rounded-xl bg-[#F8FAFC] hover:bg-[#F1F4F8] text-[#172033] border border-[#E2E8F0] transition-colors shrink-0"
+          >
+            <Menu size={18} />
+          </button>
+
+          {/* Clickable Brand Logo & Title */}
+          <div 
+            onClick={onLogoClick}
+            role="button"
+            tabIndex={0}
+            aria-label="Navigate to EV Journey Planner"
+            onKeyDown={(e) => e.key === 'Enter' && onLogoClick && onLogoClick()}
+            className="flex items-center gap-2.5 cursor-pointer group min-w-0"
+          >
+            <div className="w-8 h-8 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0] flex items-center justify-center shrink-0 group-hover:border-orange-400 transition-colors shadow-sm">
+              <img 
+                src="/assets/logo/will-i-make-it.svg" 
+                alt="Will I Make It? Logo" 
+                width="22" 
+                height="22" 
+                className="w-5 h-5 transition-transform group-hover:scale-105" 
+                loading="eager"
+              />
             </div>
-            <div className="flex items-center gap-2 text-xs text-[#64748B] truncate">
-              {routeLabel ? (
-                <span className="truncate">
-                  Corridor: <span className="text-[#172033] font-medium">{routeLabel}</span>
-                  {distanceKm !== undefined && (
-                    <span className="text-orange-600 font-mono font-semibold ml-1.5">
-                      ({distanceKm} km · ~{Math.round(durationMin ?? 0)} min)
-                    </span>
-                  )}
-                </span>
-              ) : (
-                <span>Explainable, Risk-Aware EV Route Planner for Indian Conditions</span>
-              )}
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5 sm:gap-2">
+                <h1 className="text-sm sm:text-base font-bold tracking-tight text-[#172033] font-sans flex items-center gap-1.5 sm:gap-2">
+                  <span className="hidden xs:inline">WILL I MAKE IT?</span>
+                  <span className="xs:hidden">WILL I MAKE IT?</span>
+                  <span className="text-[10px] bg-orange-50 text-orange-600 font-mono font-semibold px-1.5 sm:px-2 py-0.5 rounded-full border border-orange-200">
+                    EV
+                  </span>
+                </h1>
+              </div>
+              <div className="flex items-center gap-2 text-xs text-[#64748B] truncate">
+                {routeLabel ? (
+                  <span className="truncate">
+                    Corridor: <span className="text-[#172033] font-medium">{routeLabel}</span>
+                    {distanceKm !== undefined && (
+                      <span className="text-orange-600 font-mono font-semibold ml-1.5">
+                        ({distanceKm} km · ~{Math.round(durationMin ?? 0)} min)
+                      </span>
+                    )}
+                  </span>
+                ) : (
+                  <span className="truncate">Explainable, Risk-Aware EV Route Planner</span>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -110,7 +156,7 @@ export default function HeaderBar({
       </header>
 
       {/* Providers & Provenance Details Modal */}
-      {showProvidersModal && (
+      {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-fade-in">
           <div className="bg-[#FFFFFF] border border-[#E2E8F0] rounded-2xl max-w-2xl w-full max-h-[85vh] flex flex-col shadow-2xl overflow-hidden">
             {/* Modal Header */}
@@ -130,7 +176,7 @@ export default function HeaderBar({
               </div>
               <button
                 type="button"
-                onClick={() => setShowProvidersModal(false)}
+                onClick={handleCloseModal}
                 className="p-1.5 rounded-lg text-[#64748B] hover:text-[#172033] hover:bg-[#E2E8F0] transition-colors"
               >
                 <X size={18} />
@@ -224,7 +270,7 @@ export default function HeaderBar({
             <div className="p-4 bg-[#F8FAFC] border-t border-[#E2E8F0] flex justify-end">
               <button
                 type="button"
-                onClick={() => setShowProvidersModal(false)}
+                onClick={handleCloseModal}
                 className="px-4 py-2 rounded-xl bg-[#172033] hover:bg-[#0F172A] text-white text-xs font-semibold transition-all shadow-sm"
               >
                 Close

@@ -74,22 +74,30 @@ export default function NavigationRail({
   ];
 
   return (
-    <nav className="w-full lg:w-20 bg-[#FFFFFF] border-b lg:border-b-0 lg:border-r border-[#E2E8F0] flex lg:flex-col items-center justify-between p-2 lg:py-4 shrink-0 z-30 select-none shadow-sm">
-      {/* Brand Icon */}
-      <div 
+    <aside 
+      aria-label="Desktop Side Navigation"
+      className="hidden lg:flex lg:flex-col lg:w-20 bg-[#FFFFFF] border-r border-[#E2E8F0] items-center justify-between py-4 shrink-0 z-30 select-none shadow-sm"
+    >
+      {/* Brand Icon (Clickable Logo) */}
+      <button 
+        type="button"
         onClick={() => onViewChange('planner')}
-        className="w-10 h-10 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0] flex items-center justify-center cursor-pointer hover:border-orange-500/50 transition-all shadow-sm group shrink-0"
-        title="Will I Make It? EV Route Intelligence"
+        className="w-11 h-11 rounded-2xl bg-[#F8FAFC] border border-[#E2E8F0] flex items-center justify-center cursor-pointer hover:border-orange-500/50 transition-all shadow-sm group shrink-0"
+        title="Will I Make It? EV Route Intelligence (Return to Planner)"
+        aria-label="Return to EV Journey Planner"
       >
         <img 
           src="/assets/logo/will-i-make-it.svg" 
-          alt="Logo" 
+          alt="Will I Make It? Logo" 
+          width="28"
+          height="28"
           className="w-7 h-7 transition-transform group-hover:scale-105" 
+          loading="eager"
         />
-      </div>
+      </button>
 
       {/* Primary Navigation Icons */}
-      <div className="flex lg:flex-col items-center gap-1 sm:gap-2 my-auto">
+      <nav aria-label="Main Application Views" className="flex flex-col items-center gap-2 my-auto">
         {navItems.map(item => {
           const isActive = activeView === item.id;
           return (
@@ -118,10 +126,10 @@ export default function NavigationRail({
             </button>
           );
         })}
-      </div>
+      </nav>
 
       {/* Bottom Quick Controls & Diagnostics */}
-      <div className="flex lg:flex-col items-center gap-2 shrink-0">
+      <div className="flex flex-col items-center gap-2 shrink-0">
         {/* Sound Toggle */}
         <button
           type="button"
@@ -132,6 +140,7 @@ export default function NavigationRail({
               : 'bg-[#F8FAFC] border-[#E2E8F0] text-[#94A3B8] hover:text-[#64748B]'
           }`}
           title={soundOn ? 'Sound Synthesizer Active (Click to mute)' : 'Sound Synthesizer Muted'}
+          aria-label={soundOn ? 'Mute cockpit sound' : 'Enable cockpit sound'}
         >
           {soundOn ? <Volume2 size={15} /> : <VolumeX size={15} />}
         </button>
@@ -140,6 +149,8 @@ export default function NavigationRail({
         <div 
           className="w-3 h-3 rounded-full border-2 border-white flex items-center justify-center cursor-help shadow-sm"
           title={`Backend API: ${backendOk ? 'Online' : 'Offline'} · Neo4j: ${neo4jOk ? 'Active' : 'Fallback'}`}
+          role="status"
+          aria-label={`Backend API: ${backendOk ? 'Online' : 'Offline'}`}
         >
           <div className={`w-2 h-2 rounded-full ${
             backendOk === null 
@@ -150,6 +161,6 @@ export default function NavigationRail({
           }`} />
         </div>
       </div>
-    </nav>
+    </aside>
   );
 }

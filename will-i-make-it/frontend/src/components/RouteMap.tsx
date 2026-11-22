@@ -216,7 +216,7 @@ export default function RouteMap({
 
   // Direct Google Maps Universal Deep-Link (Turn-by-Turn EV Navigation)
   const googleMapsUrl = useMemo(() => {
-    if (!origin || !dest) return '#';
+    if (!origin || !dest) return null;
     const stopCoords = plannedStops.map(s => `${s.charger.lat},${s.charger.lng}`);
     const waypointsParam = stopCoords.length > 0 ? `&waypoints=${encodeURIComponent(stopCoords.join('|'))}` : '';
     return `https://www.google.com/maps/dir/?api=1&origin=${origin.lat},${origin.lng}&destination=${dest.lat},${dest.lng}${waypointsParam}&travelmode=driving`;
@@ -227,30 +227,45 @@ export default function RouteMap({
   return (
     <div className="relative w-full h-full rounded-2xl overflow-hidden border border-[#E2E8F0] shadow-sm flex flex-col bg-white">
       {/* Top Map Action Bar */}
-      <div className="absolute top-3 left-3 right-3 z-[1000] flex items-center justify-between pointer-events-none gap-2">
+      <div className="absolute top-2.5 sm:top-3 left-2.5 sm:left-3 right-2.5 sm:right-3 z-[1000] flex items-center justify-between pointer-events-none gap-1.5 sm:gap-2">
         {/* Navigation / Precision Badge */}
-        <div className="bg-white/95 backdrop-blur-md px-3 py-1.5 rounded-xl border border-[#E2E8F0] shadow-sm text-xs font-mono font-medium text-[#172033] flex items-center gap-2 pointer-events-auto">
-          <Navigation className="w-3.5 h-3.5 text-orange-500" />
-          <span className="font-bold text-[#172033] text-[11px] uppercase tracking-wider">ROAD-SNAPPED ROUTE</span>
-          <span className="text-[10px] bg-[#F1F4F8] text-sky-600 font-mono px-1.5 py-0.5 rounded border border-[#E2E8F0]">
+        <div className="bg-white/95 backdrop-blur-md px-2 sm:px-3 py-1.5 rounded-xl border border-[#E2E8F0] shadow-sm text-xs font-mono font-medium text-[#172033] flex items-center gap-1.5 sm:gap-2 pointer-events-auto min-w-0 shrink">
+          <Navigation className="w-3.5 h-3.5 text-orange-500 shrink-0" />
+          <span className="font-bold text-[#172033] text-[10px] sm:text-[11px] uppercase tracking-wider truncate">
+            <span className="hidden sm:inline">ROAD-SNAPPED </span>ROUTE
+          </span>
+          <span className="text-[10px] bg-[#F1F4F8] text-sky-600 font-mono px-1.5 py-0.5 rounded border border-[#E2E8F0] shrink-0">
             {exactRoadGeometry.length} GPS
           </span>
         </div>
 
         {/* Right Controls: Turn-by-Turn Nav & Layer Switcher */}
-        <div className="flex items-center gap-2 pointer-events-auto">
+        <div className="flex items-center gap-1.5 sm:gap-2 pointer-events-auto shrink-0">
           {/* Open in Google Maps Button */}
-          <a
-            href={googleMapsUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            onClick={() => playCockpitClick()}
-            title="Open turn-by-turn route with charging stops directly in Google Maps"
-            className="flex items-center gap-1.5 bg-[#F97316] hover:bg-[#EA580C] active:scale-95 text-white text-xs font-mono font-bold px-3 py-1.5 rounded-xl shadow-sm transition-all"
-          >
-            <span>GOOGLE MAPS NAV</span>
-            <ExternalLink className="w-3.5 h-3.5" />
-          </a>
+          {googleMapsUrl ? (
+            <a
+              href={googleMapsUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={() => playCockpitClick()}
+              title="Open turn-by-turn route with charging stops directly in Google Maps"
+              className="flex items-center gap-1 sm:gap-1.5 bg-[#F97316] hover:bg-[#EA580C] active:scale-95 text-white text-[11px] sm:text-xs font-mono font-bold px-2.5 sm:px-3 py-1.5 rounded-xl shadow-sm transition-all"
+            >
+              <span className="hidden xs:inline">GOOGLE MAPS</span>
+              <span>NAV</span>
+              <ExternalLink className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+            </a>
+          ) : (
+            <button
+              type="button"
+              disabled
+              title="Calculate a route to enable Google Maps navigation"
+              className="flex items-center gap-1 sm:gap-1.5 bg-slate-100 text-slate-400 text-[11px] sm:text-xs font-mono font-bold px-2.5 sm:px-3 py-1.5 rounded-xl shadow-sm cursor-not-allowed border border-slate-200"
+            >
+              <span>NAV</span>
+              <ExternalLink className="w-3 h-3 sm:w-3.5 sm:h-3.5 opacity-40" />
+            </button>
+          )}
 
           {/* Map Layer Switcher Dropdown */}
           <div className="relative">
@@ -437,7 +452,7 @@ export default function RouteMap({
       </MapContainer>
 
       {/* Floating Map Legend Overlay */}
-      <div className="absolute bottom-3 right-3 bg-white/95 backdrop-blur-md p-2.5 rounded-xl border border-[#E2E8F0] shadow-sm z-[1000] text-[11px] space-y-1.5 font-medium pointer-events-auto">
+      <div className="absolute bottom-2.5 sm:bottom-3 right-2.5 sm:right-3 bg-white/95 backdrop-blur-md p-2 sm:p-2.5 rounded-xl border border-[#E2E8F0] shadow-sm z-[1000] text-[10px] sm:text-[11px] space-y-1 sm:space-y-1.5 font-medium pointer-events-auto max-w-[190px] sm:max-w-[220px]">
         <div className="flex items-center gap-2">
           <div className="w-4 h-1 bg-sky-500 rounded-full" />
           <span className="text-[#334155]">Fastest Route</span>

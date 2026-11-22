@@ -11,6 +11,10 @@ import RouteMap from './components/RouteMap';
 import EVCockpitBoot from './components/EVCockpitBoot';
 import Neo4jGraphMonitor from './components/Neo4jGraphMonitor';
 import SarvamVoiceAssistant from './components/SarvamVoiceAssistant';
+import MobileDrawer from './components/MobileDrawer';
+import FooterBar from './components/FooterBar';
+import NotFoundPage from './components/NotFoundPage';
+import ToastContainer, { type ToastMessage } from './components/ToastContainer';
 import { healthCheck, planRoute } from './utils/api';
 import { isAudioEnabled, setAudioEnabled, playCockpitClick } from './utils/audioService';
 import type { RoutePlanResponse, VehicleProfile } from './types/api';
@@ -25,6 +29,9 @@ export default function App() {
   });
 
   const [soundOn, setSoundOn] = useState<boolean>(isAudioEnabled());
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [showExternalProvidersModal, setShowExternalProvidersModal] = useState(false);
+  const [toasts, setToasts] = useState<ToastMessage[]>([]);
 
   const [backendHealth, setBackendHealth] = useState<{
     ok: boolean | null;
@@ -46,9 +53,53 @@ export default function App() {
     lng: 75.7873
   });
   const [disabledChargers, setDisabledChargers] = useState<string[]>([]);
-  const [activeView, setActiveView] = useState<ActiveView>('planner');
+  const [activeView, setActiveView] = useState<ActiveView | '404'>('planner');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Dynamic Browser Page Title
+  useEffect(() => {
+    const titles: Record<ActiveView | '404', string> = {
+      planner: 'Will I Make It? | EV Journey Planner',
+      results: 'Journey Results | Will I Make It?',
+      energy: 'Battery Analytics | Will I Make It?',
+      chargers: 'Charging Stations | Will I Make It?',
+      voice: 'Voice AI Cockpit | Will I Make It?',
+      explain: 'EV Simulation Explained | Will I Make It?',
+      graph: 'Graph Intelligence | Will I Make It?',
+      '404': 'Page Not Found | Will I Make It?',
+    };
+    document.title = titles[activeView] || 'Will I Make It? | EV Route Intelligence';
+  }, [activeView]);
+
+  // URL Hash synchronization
+  useEffect(() => {
+    const handleHash = () => {
+      const hash = window.location.hash.replace('#', '').toLowerCase();
+      if (['planner', 'results', 'energy', 'chargers', 'voice', 'explain', 'graph'].includes(hash)) {
+        setActiveView(hash as ActiveView);
+      } else if (hash === '404') {
+        setActiveView('404');
+      }
+    };
+    if (window.location.hash) {
+      handleHash();
+    }
+    window.addEventListener('hashchange', handleHash);
+    return () => window.removeEventListener('hashchange', handleHash);
+  }, []);
+
+  const showToast = (type: 'success' | 'error' | 'info' | 'warning', message: string, title?: string) => {
+    const id = Math.random().toString(36).substring(2, 9);
+    setToasts(prev => [...prev.slice(-3), { id, type, message, title }]);
+    setTimeout(() => {
+      setToasts(prev => prev.filter(t => t.id !== id));
+    }, 4500);
+  };
+
+  const dismissToast = (id: string) => {
+    setToasts(prev => prev.filter(t => t.id !== id));
+  };
 
   const handleBootComplete = () => {
     sessionStorage.setItem('ev_cockpit_boot_played', 'true');
@@ -65,9 +116,10 @@ export default function App() {
     setSoundOn(next);
     setAudioEnabled(next);
     if (next) playCockpitClick();
+    showToast('info', next ? 'Cockpit audio synthesis enabled' : 'Cockpit audio synthesis muted', 'Audio Settings');
   };
 
-  // Initial load: check health & immediately auto-plan initial route
+  // Initial load: check health & auto-plan baseline route
   useEffect(() => {
     let isMounted = true;
 
@@ -80,7 +132,7 @@ export default function App() {
           neo4jDiagnostic: h.neo4j_diagnostic,
         });
 
-        // Auto-plan initial trip so the dashboard is live immediately!
+        // Auto-plan initial trip so the dashboard is live immediately
         setLoading(true);
         planRoute({
           origin_lat: 19.076,
@@ -94,10 +146,17 @@ export default function App() {
           disabled_charger_ids: [],
         })
           .then(res => {
-            if (isMounted) setRouteResult(res);
+            if (isMounted) {
+              setRouteResult(res);
+              showToast('success', `${res.fastest_route.label} (${res.fastest_route.distance_km} km) initialized successfully.`, 'Initial Route Ready');
+            }
           })
           .catch(e => {
-            if (isMounted) setError(e?.message ?? 'Initial route calculation failed');
+            if (isMounted) {
+              const msg = e?.message ?? 'Initial route calculation failed';
+              setError(msg);
+              showToast('error', msg, 'Route Calculation Error');
+            }
           })
           .finally(() => {
             if (isMounted) setLoading(false);
@@ -106,6 +165,7 @@ export default function App() {
       .catch(() => {
         if (!isMounted) return;
         setBackendHealth({ ok: false, neo4j: false });
+        showToast('error', 'Backend simulation server unreachable at 127.0.0.1:8000', 'Connection Failed');
       });
 
     return () => {
@@ -116,8 +176,17 @@ export default function App() {
   const handleRouteResult = (result: RoutePlanResponse) => {
     setRouteResult(result);
     setError(null);
-    // Automatically switch view to 'results' so user immediately sees the feasibility decision!
     setActiveView('results');
+    showToast(
+      'success',
+      `${result.fastest_route.label} (${result.fastest_route.distance_km} km) - P50: ${result.fastest_route.energy_result.total_kwh_p50.toFixed(1)} kWh`,
+      'Route Feasibility Calculated'
+    );
+  };
+
+  const handleVehicleChange = (v: VehicleProfile) => {
+    setVehicle(v);
+    showToast('info', `Profile updated: ${v.battery_capacity_kwh} kWh battery pack`, 'EV Model Selected');
   };
 
   const handleChargerToggle = (chargerId: string, disabled: boolean) => {
@@ -127,6 +196,11 @@ export default function App() {
       : disabledChargers.filter(id => id !== chargerId);
     
     setDisabledChargers(updated);
+    showToast(
+      disabled ? 'warning' : 'success',
+      disabled ? `Simulated outage at station ${chargerId}. Recalculating...` : `Station ${chargerId} restored online. Recalculating...`,
+      'Charging Network Updated'
+    );
 
     // If a route is currently active, immediately re-plan with updated outage state
     if (routeResult) {
@@ -145,8 +219,15 @@ export default function App() {
         demo_route_id: isCustom ? undefined : selectedRouteId,
         disabled_charger_ids: updated,
       })
-        .then(res => setRouteResult(res))
-        .catch(err => setError(err?.message ?? 'Rerouting failed'))
+        .then(res => {
+          setRouteResult(res);
+          showToast('success', 'Rerouted around station outages with updated feasibility margin.', 'Network Rerouted');
+        })
+        .catch(err => {
+          const msg = err?.message ?? 'Rerouting failed';
+          setError(msg);
+          showToast('error', msg, 'Reroute Alert');
+        })
         .finally(() => setLoading(false));
     }
   };
@@ -154,6 +235,7 @@ export default function App() {
   const resetDisabledChargers = () => {
     playCockpitClick();
     setDisabledChargers([]);
+    showToast('success', 'All simulated station outages restored to operational status.', 'Stations Restored');
     if (routeResult) {
       setLoading(true);
       const isCustom = selectedRouteId === 'CUSTOM_ROUTE' && customOrigin && customDest;
@@ -179,23 +261,44 @@ export default function App() {
   const activeRouteOption = routeResult?.fastest_route;
 
   return (
-    <div className="min-h-screen bg-[#F6F8FB] text-[#172033] flex flex-col antialiased selection:bg-orange-500 selection:text-white relative font-sans">
+    <div className="min-h-screen w-full max-w-full bg-[#F6F8FB] text-[#172033] flex flex-col antialiased selection:bg-orange-500 selection:text-white relative font-sans overflow-x-hidden">
       {/* 3D EV Boot Startup Scene (Plays once, skippable) */}
       {showBootScreen && (
         <EVCockpitBoot onComplete={handleBootComplete} />
       )}
 
+      {/* Responsive Mobile Drawer Menu */}
+      <MobileDrawer
+        isOpen={isMobileMenuOpen}
+        onClose={() => setIsMobileMenuOpen(false)}
+        activeView={activeView}
+        onViewChange={(view) => {
+          playCockpitClick();
+          setActiveView(view);
+        }}
+        disabledChargersCount={disabledChargers.length}
+        soundOn={soundOn}
+        onToggleSound={toggleSound}
+        backendOk={backendHealth.ok}
+        neo4jOk={backendHealth.neo4j}
+        onReplayIntro={handleReplayBoot}
+        onOpenSystemStatus={() => setShowExternalProvidersModal(true)}
+      />
+
+      {/* Toast Notification Stream */}
+      <ToastContainer toasts={toasts} onDismiss={dismissToast} />
+
       {/* Main Application Interface */}
       <div 
-        className="flex-1 flex flex-col lg:flex-row h-screen overflow-hidden transition-opacity duration-500" 
+        className="flex-1 flex flex-col lg:flex-row h-screen min-h-0 w-full overflow-hidden transition-opacity duration-500" 
         style={{ 
           visibility: showBootScreen ? 'hidden' : 'visible',
           opacity: showBootScreen ? 0 : 1
         }}
       >
-        {/* Left Vertical Navigation Rail */}
+        {/* Left Vertical Navigation Rail (Desktop Only: hidden on mobile) */}
         <NavigationRail
-          activeView={activeView}
+          activeView={activeView === '404' ? 'planner' : activeView}
           onViewChange={(view) => {
             playCockpitClick();
             setActiveView(view);
@@ -219,6 +322,13 @@ export default function App() {
             neo4jOk={backendHealth.neo4j}
             neo4jDiagnostic={backendHealth.neo4jDiagnostic}
             onReplayIntro={handleReplayBoot}
+            onOpenMobileMenu={() => setIsMobileMenuOpen(true)}
+            onLogoClick={() => {
+              playCockpitClick();
+              setActiveView('planner');
+            }}
+            externalShowProvidersModal={showExternalProvidersModal}
+            onCloseExternalProvidersModal={() => setShowExternalProvidersModal(false)}
           />
 
           {/* Backend Offline Warning Banner */}
@@ -229,205 +339,235 @@ export default function App() {
             </div>
           )}
 
-          {/* Main Stage: Graph Monitor OR Dual-Column Map Workspace */}
-          {activeView === 'graph' ? (
-            <div className="flex-1 w-full h-full min-h-0 p-3 sm:p-5 overflow-hidden">
-              <div className="w-full h-full rounded-2xl overflow-hidden border border-[#E2E8F0] shadow-sm bg-white">
+          {/* 404 Route Not Found View */}
+          {activeView === '404' ? (
+            <NotFoundPage
+              onReturnToPlanner={() => {
+                playCockpitClick();
+                setActiveView('planner');
+              }}
+              onExploreStations={() => {
+                playCockpitClick();
+                setActiveView('chargers');
+              }}
+            />
+          ) : activeView === 'graph' ? (
+            /* Main Stage: Graph Monitor */
+            <main className="flex-1 w-full h-full min-h-0 p-3 sm:p-5 overflow-hidden flex flex-col">
+              <div className="w-full flex-1 min-h-0 rounded-2xl overflow-hidden border border-[#E2E8F0] shadow-sm bg-white">
                 <Neo4jGraphMonitor />
               </div>
-            </div>
+            </main>
           ) : (
-            <div className="flex-1 flex flex-col lg:flex-row min-h-0 overflow-y-auto lg:overflow-hidden p-3 sm:p-5 gap-4">
-            {/* Left Control / Information Column (Scrollable, ~40% width on desktop) */}
-            <div className="w-full lg:w-[420px] xl:w-[460px] 2xl:w-[480px] flex flex-col shrink-0 lg:overflow-y-auto pr-0 lg:pr-1 gap-4">
-              {activeView === 'planner' && (
-                <TripPlanner
-                  vehicle={vehicle}
-                  onVehicleChange={setVehicle}
-                  selectedRouteId={selectedRouteId}
-                  onRouteSelect={setSelectedRouteId}
-                  disabledChargers={disabledChargers}
-                  onResult={handleRouteResult}
-                  onError={setError}
-                  onLoading={setLoading}
-                  isLoading={loading}
-                  onCustomLocationsChange={(orig, dest) => {
-                    setCustomOrigin(orig);
-                    setCustomDest(dest);
-                  }}
-                />
-              )}
+            /* Main Stage: Dual-Column Map Workspace */
+            <main className="flex-1 flex flex-col lg:flex-row min-h-0 overflow-y-auto lg:overflow-hidden p-3 sm:p-5 gap-4">
+              {/* Left Control / Information Column (Scrollable, ~40% width on desktop) */}
+              <div className="w-full lg:w-[420px] xl:w-[460px] 2xl:w-[480px] flex flex-col shrink-0 lg:overflow-y-auto pr-0 lg:pr-1 gap-4 min-w-0">
+                {activeView === 'planner' && (
+                  <TripPlanner
+                    vehicle={vehicle}
+                    onVehicleChange={handleVehicleChange}
+                    selectedRouteId={selectedRouteId}
+                    onRouteSelect={setSelectedRouteId}
+                    disabledChargers={disabledChargers}
+                    onResult={handleRouteResult}
+                    onError={(err) => {
+                      setError(err);
+                      if (err) showToast('error', err, 'Planning Constraint');
+                    }}
+                    onLoading={setLoading}
+                    isLoading={loading}
+                    onCustomLocationsChange={(orig, dest) => {
+                      setCustomOrigin(orig);
+                      setCustomDest(dest);
+                    }}
+                  />
+                )}
 
-              {activeView === 'results' && routeResult && (
-                <JourneyResultsPanel
-                  result={routeResult}
-                  vehicle={vehicle}
-                  disabledChargers={disabledChargers}
-                  onChargerToggle={handleChargerToggle}
-                  selectedRouteId={selectedRouteId}
-                  onNavigateToEnergy={() => {
-                    playCockpitClick();
-                    setActiveView('energy');
-                  }}
-                />
-              )}
+                {activeView === 'results' && routeResult && (
+                  <JourneyResultsPanel
+                    result={routeResult}
+                    vehicle={vehicle}
+                    disabledChargers={disabledChargers}
+                    onChargerToggle={handleChargerToggle}
+                    selectedRouteId={selectedRouteId}
+                    onNavigateToEnergy={() => {
+                      playCockpitClick();
+                      setActiveView('energy');
+                    }}
+                  />
+                )}
 
-              {activeView === 'results' && !routeResult && (
-                <div className="bg-white border border-[#E2E8F0] rounded-2xl flex flex-col items-center justify-center p-8 text-center text-[#64748B] shadow-sm">
-                  <Compass size={32} className="text-[#F97316] mb-2" />
-                  <h3 className="text-sm font-bold text-[#172033] mb-1 font-mono uppercase">NO ACTIVE ROUTE CALCULATED</h3>
-                  <p className="text-xs text-[#64748B] mb-4">Plan a journey in the Trip Planner to generate route decisions.</p>
-                  <button
-                    type="button"
-                    onClick={() => setActiveView('planner')}
-                    className="btn-primary text-xs"
-                  >
-                    Open Trip Planner
-                  </button>
-                </div>
-              )}
+                {activeView === 'results' && !routeResult && (
+                  <div className="bg-white border border-[#E2E8F0] rounded-2xl flex flex-col items-center justify-center p-8 text-center text-[#64748B] shadow-sm">
+                    <Compass size={32} className="text-[#F97316] mb-2" />
+                    <h3 className="text-sm font-bold text-[#172033] mb-1 font-mono uppercase">NO ACTIVE ROUTE CALCULATED</h3>
+                    <p className="text-xs text-[#64748B] mb-4">Plan a journey in the Trip Planner to generate route decisions.</p>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        playCockpitClick();
+                        setActiveView('planner');
+                      }}
+                      className="px-4 py-2 rounded-xl bg-[#F97316] hover:bg-[#EA580C] text-white text-xs font-mono font-bold transition-all shadow-sm"
+                    >
+                      Open Trip Planner
+                    </button>
+                  </div>
+                )}
 
-              {activeView === 'energy' && (
-                <EnergyIntelligencePanel
-                  result={routeResult}
-                  vehicle={vehicle}
-                />
-              )}
+                {activeView === 'energy' && (
+                  <EnergyIntelligencePanel
+                    result={routeResult}
+                    vehicle={vehicle}
+                  />
+                )}
 
-              {activeView === 'chargers' && (
-                <ChargerPanel
-                  routeResult={routeResult}
-                  disabledChargers={disabledChargers}
-                  onChargerToggle={handleChargerToggle}
-                  onResetDisabledChargers={resetDisabledChargers}
-                />
-              )}
+                {activeView === 'chargers' && (
+                  <ChargerPanel
+                    routeResult={routeResult}
+                    disabledChargers={disabledChargers}
+                    onChargerToggle={handleChargerToggle}
+                    onResetDisabledChargers={resetDisabledChargers}
+                  />
+                )}
 
-              {activeView === 'voice' && (
-                <SarvamVoiceAssistant
-                  vehicle={vehicle}
-                  currentRoute={routeResult}
-                  onApplyRoute={(newRoute) => {
-                    setRouteResult(newRoute);
-                    setActiveView('results');
-                  }}
-                />
-              )}
+                {activeView === 'voice' && (
+                  <SarvamVoiceAssistant
+                    vehicle={vehicle}
+                    currentRoute={routeResult}
+                    onApplyRoute={(newRoute) => {
+                      setRouteResult(newRoute);
+                      setActiveView('results');
+                      showToast('success', 'Voice route applied to map successfully', 'Route Applied');
+                    }}
+                  />
+                )}
 
-              {activeView === 'explain' && (
-                <ExplainPanel
-                  routeResult={routeResult}
-                  vehicle={vehicle}
-                />
-              )}
-            </div>
-
-            {/* Right Column: Visualization & Map Dashboard (~60% width on desktop) */}
-            <div className="flex-1 flex flex-col min-w-0 overflow-y-auto pr-0 lg:pr-1 gap-4">
-              {/* Controlled-Height Interactive Map Canvas */}
-              <div className="w-full h-[380px] sm:h-[400px] lg:h-[440px] shrink-0 relative">
-                <RouteMap
-                  routeResult={routeResult}
-                  selectedRouteId={selectedRouteId}
-                  disabledChargers={disabledChargers}
-                  onChargerToggle={handleChargerToggle}
-                  customOrigin={customOrigin}
-                  customDest={customDest}
-                />
+                {activeView === 'explain' && (
+                  <ExplainPanel
+                    routeResult={routeResult}
+                    vehicle={vehicle}
+                  />
+                )}
               </div>
 
-              {/* Dynamic Route Summary Card under the Map */}
-              {routeResult && (
-                <div className="bg-white border border-[#E2E8F0] rounded-2xl p-4 shadow-sm flex flex-col gap-3 shrink-0">
-                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
-                    <div className="flex items-center gap-3 min-w-0">
-                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
-                        routeResult.fastest_route.feasible 
-                          ? 'bg-emerald-50 text-emerald-600 border border-emerald-200' 
-                          : 'bg-rose-50 text-rose-600 border border-rose-200'
-                      }`}>
-                        <Zap size={20} />
-                      </div>
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm font-bold font-mono text-[#172033]">
-                            {routeResult.fastest_route.feasible ? 'FEASIBLE ROUTE' : 'RANGE CRITICAL'}
-                          </span>
-                          <span className="text-xs bg-orange-50 text-orange-700 font-mono font-bold px-2 py-0.5 rounded border border-orange-200">
-                            +{routeResult.fastest_route.feasibility_margin_kwh.toFixed(1)} kWh Reserve
-                          </span>
+              {/* Right Column: Visualization & Map Dashboard (~60% width on desktop) */}
+              <div className="flex-1 flex flex-col min-w-0 overflow-y-auto pr-0 lg:pr-1 gap-4">
+                {/* Controlled-Height Interactive Map Canvas */}
+                <div className="w-full h-[380px] sm:h-[400px] lg:h-[440px] shrink-0 relative rounded-2xl overflow-hidden">
+                  <RouteMap
+                    routeResult={routeResult}
+                    selectedRouteId={selectedRouteId}
+                    disabledChargers={disabledChargers}
+                    onChargerToggle={handleChargerToggle}
+                    customOrigin={customOrigin}
+                    customDest={customDest}
+                  />
+                </div>
+
+                {/* Dynamic Route Summary Card under the Map */}
+                {routeResult && (
+                  <div className="bg-white border border-[#E2E8F0] rounded-2xl p-4 shadow-sm flex flex-col gap-3 shrink-0">
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
+                          routeResult.fastest_route.feasible 
+                            ? 'bg-emerald-50 text-emerald-600 border border-emerald-200' 
+                            : 'bg-rose-50 text-rose-600 border border-rose-200'
+                        }`}>
+                          <Zap size={20} />
                         </div>
-                        <p className="text-xs text-[#64748B] truncate mt-0.5">
-                          P50: <strong className="text-teal-700">{routeResult.fastest_route.energy_result.total_kwh_p50.toFixed(1)} kWh</strong> · P90: <strong className="text-orange-700">{routeResult.fastest_route.energy_result.total_kwh_p90.toFixed(1)} kWh</strong> · Arrival SoC: <strong className="text-[#172033]">{routeResult.fastest_route.energy_result.soc_final_p90_pct.toFixed(0)}%</strong>
-                        </p>
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-bold font-mono text-[#172033]">
+                              {routeResult.fastest_route.feasible ? 'FEASIBLE ROUTE' : 'RANGE CRITICAL'}
+                            </span>
+                            <span className="text-xs bg-orange-50 text-orange-700 font-mono font-bold px-2 py-0.5 rounded border border-orange-200">
+                              +{routeResult.fastest_route.feasibility_margin_kwh.toFixed(1)} kWh Reserve
+                            </span>
+                          </div>
+                          <p className="text-xs text-[#64748B] truncate mt-0.5">
+                            P50: <strong className="text-teal-700">{routeResult.fastest_route.energy_result.total_kwh_p50.toFixed(1)} kWh</strong> · P90: <strong className="text-orange-700">{routeResult.fastest_route.energy_result.total_kwh_p90.toFixed(1)} kWh</strong> · Arrival SoC: <strong className="text-[#172033]">{routeResult.fastest_route.energy_result.soc_final_p90_pct.toFixed(0)}%</strong>
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Navigation Shortcuts */}
+                      <div className="flex items-center gap-2 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            playCockpitClick();
+                            setActiveView('results');
+                          }}
+                          className="px-3.5 py-2 rounded-xl bg-[#F97316] hover:bg-[#EA580C] text-white text-xs font-mono font-bold transition-all shadow-sm"
+                        >
+                          Decision View
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            playCockpitClick();
+                            setActiveView('energy');
+                          }}
+                          className="px-3.5 py-2 rounded-xl bg-white hover:bg-[#F8FAFC] text-[#334155] border border-[#CBD5E1] text-xs font-mono font-medium transition-all shadow-sm"
+                        >
+                          Energy Curves
+                        </button>
                       </div>
                     </div>
 
-                    {/* Navigation Shortcuts */}
-                    <div className="flex items-center gap-2 shrink-0">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          playCockpitClick();
-                          setActiveView('results');
-                        }}
-                        className="px-3.5 py-2 rounded-xl bg-[#F97316] hover:bg-[#EA580C] text-white text-xs font-mono font-bold transition-all shadow-sm"
-                      >
-                        Decision View
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          playCockpitClick();
-                          setActiveView('energy');
-                        }}
-                        className="px-3.5 py-2 rounded-xl bg-white hover:bg-[#F8FAFC] text-[#334155] border border-[#CBD5E1] text-xs font-mono font-medium transition-all shadow-sm"
-                      >
-                        Energy Curves
-                      </button>
+                    {/* Planned Charging Stops summary strip */}
+                    {routeResult.fastest_route.charging_stops.length > 0 && (
+                      <div className="pt-2 border-t border-[#F1F4F8] flex items-center gap-2 overflow-x-auto text-xs font-mono">
+                        <span className="text-[10px] text-[#64748B] font-bold uppercase tracking-wider shrink-0">STOPS:</span>
+                        {routeResult.fastest_route.charging_stops.map((stop, sidx) => (
+                          <div key={stop.charger.charger_id || sidx} className="flex items-center gap-1.5 bg-[#F8FAFC] px-2.5 py-1 rounded-lg border border-[#E2E8F0] shrink-0 text-[#334155]">
+                            <span className="w-1.5 h-1.5 rounded-full bg-[#F97316]" />
+                            <span className="font-semibold text-[#172033]">{stop.charger.name.slice(0, 18)}</span>
+                            <span className="text-[10px] text-orange-600">({stop.arrive_soc_pct.toFixed(0)}% → {stop.depart_soc_pct.toFixed(0)}%)</span>
+                            <span className="text-[10px] text-[#64748B]">{stop.charge_duration_min.toFixed(0)}m</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Loading Indicator */}
+                {loading && (
+                  <div className="bg-white border border-[#E2E8F0] rounded-2xl flex items-center justify-center h-20 shadow-sm shrink-0">
+                    <div className="flex items-center gap-3 text-orange-600 text-xs font-mono font-bold tracking-wider">
+                      <div className="w-4 h-4 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
+                      <span>CALCULATING HIGHWAY FORCES & CHARGER REACHABILITY...</span>
                     </div>
                   </div>
+                )}
 
-                  {/* Planned Charging Stops summary strip */}
-                  {routeResult.fastest_route.charging_stops.length > 0 && (
-                    <div className="pt-2 border-t border-[#F1F4F8] flex items-center gap-2 overflow-x-auto text-xs font-mono">
-                      <span className="text-[10px] text-[#64748B] font-bold uppercase tracking-wider shrink-0">STOPS:</span>
-                      {routeResult.fastest_route.charging_stops.map((stop, sidx) => (
-                        <div key={stop.charger.charger_id || sidx} className="flex items-center gap-1.5 bg-[#F8FAFC] px-2.5 py-1 rounded-lg border border-[#E2E8F0] shrink-0 text-[#334155]">
-                          <span className="w-1.5 h-1.5 rounded-full bg-[#F97316]" />
-                          <span className="font-semibold text-[#172033]">{stop.charger.name.slice(0, 18)}</span>
-                          <span className="text-[10px] text-orange-600">({stop.arrive_soc_pct.toFixed(0)}% → {stop.depart_soc_pct.toFixed(0)}%)</span>
-                          <span className="text-[10px] text-[#64748B]">{stop.charge_duration_min.toFixed(0)}m</span>
-                        </div>
-                      ))}
+                {/* Routing Error Notice */}
+                {error && !loading && (
+                  <div className="bg-rose-50 border border-rose-200 rounded-2xl p-3.5 shadow-sm shrink-0">
+                    <div className="flex items-center gap-2 text-rose-700 text-xs font-bold uppercase tracking-wider font-mono">
+                      <AlertTriangle size={15} />
+                      Routing Constraint Alert
                     </div>
-                  )}
-                </div>
-              )}
-
-              {/* Loading Indicator */}
-              {loading && (
-                <div className="bg-white border border-[#E2E8F0] rounded-2xl flex items-center justify-center h-20 shadow-sm shrink-0">
-                  <div className="flex items-center gap-3 text-orange-600 text-xs font-mono font-bold tracking-wider">
-                    <div className="w-4 h-4 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
-                    <span>CALCULATING HIGHWAY FORCES & CHARGER REACHABILITY...</span>
+                    <p className="text-xs text-rose-800 mt-0.5">{error}</p>
                   </div>
-                </div>
-              )}
-
-              {/* Routing Error Notice */}
-              {error && !loading && (
-                <div className="bg-rose-50 border border-rose-200 rounded-2xl p-3.5 shadow-sm shrink-0">
-                  <div className="flex items-center gap-2 text-rose-700 text-xs font-bold uppercase tracking-wider font-mono">
-                    <AlertTriangle size={15} />
-                    Routing Constraint Alert
-                  </div>
-                  <p className="text-xs text-rose-800 mt-0.5">{error}</p>
-                </div>
-              )}
-            </div>
-          </div>
+                )}
+              </div>
+            </main>
           )}
+
+          {/* Clean Light-Theme Footer Bar */}
+          <FooterBar
+            onViewChange={(view) => {
+              playCockpitClick();
+              setActiveView(view);
+            }}
+            onOpenSystemStatus={() => setShowExternalProvidersModal(true)}
+            activeView={activeView}
+          />
         </div>
       </div>
     </div>

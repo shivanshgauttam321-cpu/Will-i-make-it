@@ -157,14 +157,14 @@ export default function EnergyIntelligencePanel({ result, vehicle }: Props) {
 
       {/* 2. Battery SoC Trajectory Profile AreaChart */}
       <div className="bg-white border border-[#E2E8F0] rounded-2xl p-4 shadow-sm">
-        <div className="flex items-center justify-between mb-3 border-b border-[#F1F4F8] pb-2">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3 border-b border-[#F1F4F8] pb-2">
           <div className="flex items-center gap-2">
             <Flame size={14} className="text-[#F97316]" />
             <h4 className="text-xs font-bold font-mono tracking-wider text-[#172033] uppercase">
               BATTERY SOC TRAJECTORY PROFILE (%)
             </h4>
           </div>
-          <div className="flex items-center gap-3 text-[10px] text-[#64748B] font-mono">
+          <div className="flex flex-wrap items-center gap-2.5 sm:gap-3 text-[10px] text-[#64748B] font-mono">
             <span className="flex items-center gap-1">
               <span className="w-2.5 h-2.5 rounded-full bg-teal-500 inline-block" /> P50 Expected
             </span>
@@ -267,14 +267,14 @@ export default function EnergyIntelligencePanel({ result, vehicle }: Props) {
 
       {/* 4. Segment Physical Forces Breakdown BarChart */}
       <div className="bg-white border border-[#E2E8F0] rounded-2xl p-4 shadow-sm">
-        <div className="flex items-center justify-between mb-3 border-b border-[#F1F4F8] pb-2">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3 border-b border-[#F1F4F8] pb-2">
           <div className="flex items-center gap-2">
             <Layers size={14} className="text-[#F97316]" />
             <h4 className="text-xs font-bold font-mono tracking-wider text-[#172033] uppercase">
               ROAD SEGMENT FORCES (kWh)
             </h4>
           </div>
-          <div className="flex items-center gap-3 text-[10px] font-mono text-[#64748B]">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-[10px] font-mono text-[#64748B]">
             <span className="flex items-center gap-1">
               <span className="w-2.5 h-2.5 bg-sky-500 rounded-sm" /> Rolling
             </span>
