@@ -74,11 +74,11 @@ export default function NavigationRail({
   ];
 
   return (
-    <nav className="w-full lg:w-20 bg-[#0e1219] border-b lg:border-b-0 lg:border-r border-[#1e2535] flex lg:flex-col items-center justify-between p-2 lg:py-4 shrink-0 z-30 select-none">
+    <nav className="w-full lg:w-20 bg-[#FFFFFF] border-b lg:border-b-0 lg:border-r border-[#E2E8F0] flex lg:flex-col items-center justify-between p-2 lg:py-4 shrink-0 z-30 select-none shadow-sm">
       {/* Brand Icon */}
       <div 
         onClick={() => onViewChange('planner')}
-        className="w-10 h-10 rounded-xl bg-[#151a24] border border-[#252e3f] flex items-center justify-center cursor-pointer hover:border-orange-500/50 transition-all shadow-sm group shrink-0"
+        className="w-10 h-10 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0] flex items-center justify-center cursor-pointer hover:border-orange-500/50 transition-all shadow-sm group shrink-0"
         title="Will I Make It? EV Route Intelligence"
       >
         <img 
@@ -99,8 +99,8 @@ export default function NavigationRail({
               onClick={() => onViewChange(item.id)}
               className={`relative flex flex-col items-center justify-center w-12 h-12 lg:w-14 lg:h-14 rounded-2xl transition-all ${
                 isActive
-                  ? 'bg-orange-500 text-white shadow-md shadow-orange-950/40 font-bold'
-                  : 'text-slate-400 hover:text-slate-200 hover:bg-[#161c28]'
+                  ? 'bg-[#F97316] text-white shadow-md shadow-orange-500/25 font-semibold'
+                  : 'text-[#64748B] hover:text-[#172033] hover:bg-[#F1F4F8]'
               }`}
               title={item.label}
             >
@@ -111,7 +111,7 @@ export default function NavigationRail({
 
               {/* Notification Badge */}
               {item.badge !== undefined && item.badge > 0 && (
-                <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-rose-500 text-white text-[9px] font-mono font-bold flex items-center justify-center">
+                <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-rose-500 text-white text-[9px] font-mono font-bold flex items-center justify-center shadow-sm">
                   {item.badge}
                 </span>
               )}
@@ -128,8 +128,8 @@ export default function NavigationRail({
           onClick={onToggleSound}
           className={`w-9 h-9 rounded-xl border flex items-center justify-center transition-all ${
             soundOn
-              ? 'bg-[#181e2b] border-[#252e3f] text-orange-400 hover:text-orange-300'
-              : 'bg-[#10141d] border-[#1e2535] text-slate-500 hover:text-slate-400'
+              ? 'bg-[#FFF7ED] border-orange-200 text-orange-600 hover:text-orange-700'
+              : 'bg-[#F8FAFC] border-[#E2E8F0] text-[#94A3B8] hover:text-[#64748B]'
           }`}
           title={soundOn ? 'Sound Synthesizer Active (Click to mute)' : 'Sound Synthesizer Muted'}
         >
@@ -138,14 +138,14 @@ export default function NavigationRail({
 
         {/* Backend Connectivity Status Dot */}
         <div 
-          className="w-3 h-3 rounded-full border-2 border-[#0e1219] flex items-center justify-center cursor-help"
+          className="w-3 h-3 rounded-full border-2 border-white flex items-center justify-center cursor-help shadow-sm"
           title={`Backend API: ${backendOk ? 'Online' : 'Offline'} · Neo4j: ${neo4jOk ? 'Active' : 'Fallback'}`}
         >
           <div className={`w-2 h-2 rounded-full ${
             backendOk === null 
-              ? 'bg-slate-500' 
+              ? 'bg-slate-400' 
               : backendOk 
-                ? 'bg-emerald-400 animate-pulse' 
+                ? 'bg-emerald-500' 
                 : 'bg-rose-500'
           }`} />
         </div>

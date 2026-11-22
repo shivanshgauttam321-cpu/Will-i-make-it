@@ -328,27 +328,27 @@ export default function Neo4jGraphMonitor() {
   return (
     <div className="flex flex-col h-full bg-[#0a0d14] text-slate-200 font-sans overflow-hidden">
       {/* ── TOP MONITOR HEADER ── */}
-      <div className="border-b border-[#1c2436] bg-[#0e131f] px-5 py-3 flex flex-wrap items-center justify-between gap-3 shrink-0">
+      <div className="border-b border-[#E2E8F0] bg-white px-5 py-3 flex flex-wrap items-center justify-between gap-3 shrink-0">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-orange-500/15 border border-orange-500/30 flex items-center justify-center text-orange-400">
+          <div className="w-9 h-9 rounded-xl bg-orange-50 border border-orange-200 flex items-center justify-center text-[#F97316]">
             <Database size={18} />
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h2 className="text-sm font-black tracking-wide text-white uppercase font-sans">
+              <h2 className="text-sm font-black tracking-wide text-[#172033] uppercase font-sans">
                 Neo4j Graph Monitor & Sync Engine
               </h2>
               <span className={`text-[10px] font-mono px-2 py-0.5 rounded-full border ${
                 syncStatus?.status === 'CONNECTED'
-                  ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
+                  ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
                   : syncStatus?.status === 'DISABLED'
-                    ? 'bg-slate-700/40 text-slate-400 border-slate-600/30'
-                    : 'bg-rose-500/15 text-rose-400 border-rose-500/30'
+                    ? 'bg-slate-100 text-[#64748B] border-slate-200'
+                    : 'bg-rose-50 text-rose-700 border-rose-200'
               }`}>
                 {syncStatus?.status || 'CHECKING...'}
               </span>
             </div>
-            <p className="text-[11px] text-slate-400">
+            <p className="text-[11px] text-[#64748B]">
               Live highway corridor topology, charging graph & transactional outbox synchronization
             </p>
           </div>
@@ -360,10 +360,10 @@ export default function Neo4jGraphMonitor() {
             type="button"
             onClick={handleManualSync}
             disabled={refreshing}
-            className="px-2.5 py-1.5 rounded-lg bg-[#141b29] hover:bg-[#1a2336] text-slate-300 hover:text-white border border-[#252f44] text-xs font-mono transition-all flex items-center gap-1.5"
+            className="px-2.5 py-1.5 rounded-lg bg-[#F8FAFC] hover:bg-white text-[#334155] hover:text-[#172033] border border-[#CBD5E1] text-xs font-mono transition-all flex items-center gap-1.5 shadow-sm"
             title="Dispatch pending outbox events to Neo4j"
           >
-            <GitBranch size={13} className="text-orange-400" />
+            <GitBranch size={13} className="text-[#F97316]" />
             <span>Sync Outbox</span>
           </button>
 
@@ -371,18 +371,18 @@ export default function Neo4jGraphMonitor() {
             type="button"
             onClick={loadAllData}
             disabled={refreshing}
-            className="px-2.5 py-1.5 rounded-lg bg-[#141b29] hover:bg-[#1a2336] text-slate-300 hover:text-white border border-[#252f44] text-xs font-mono transition-all flex items-center gap-1.5"
+            className="px-2.5 py-1.5 rounded-lg bg-[#F8FAFC] hover:bg-white text-[#334155] hover:text-[#172033] border border-[#CBD5E1] text-xs font-mono transition-all flex items-center gap-1.5 shadow-sm"
           >
-            <RefreshCw size={12} className={refreshing ? 'animate-spin text-cyan-400' : 'text-slate-400'} />
+            <RefreshCw size={12} className={refreshing ? 'animate-spin text-sky-600' : 'text-[#64748B]'} />
             <span>Refresh</span>
           </button>
 
-          <label className="flex items-center gap-1.5 text-[11px] font-mono text-slate-400 bg-[#121622] px-2.5 py-1.5 rounded-lg border border-[#222b3d] cursor-pointer">
+          <label className="flex items-center gap-1.5 text-[11px] font-mono text-[#64748B] bg-[#F8FAFC] px-2.5 py-1.5 rounded-lg border border-[#CBD5E1] cursor-pointer shadow-sm">
             <input
               type="checkbox"
               checked={autoRefresh}
               onChange={e => setAutoRefresh(e.target.checked)}
-              className="rounded bg-slate-900 border-slate-700 text-orange-500 focus:ring-0 w-3.5 h-3.5"
+              className="rounded bg-white border-slate-300 text-orange-500 focus:ring-0 w-3.5 h-3.5"
             />
             <span>Auto (6s)</span>
           </label>
@@ -390,51 +390,51 @@ export default function Neo4jGraphMonitor() {
       </div>
 
       {/* ── CONNECTION & STATISTICS BAR ── */}
-      <div className="border-b border-[#1c2436] bg-[#0c101a] px-5 py-2.5 grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-3 shrink-0 text-xs font-mono">
-        <div className="bg-[#101624] p-2 rounded border border-[#1e273b]">
-          <div className="text-[10px] text-slate-500 uppercase">Database</div>
-          <div className="text-white font-bold truncate mt-0.5">{syncStatus?.database || 'neo4j'}</div>
+      <div className="border-b border-[#E2E8F0] bg-[#F8FAFC] px-5 py-2.5 grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-3 shrink-0 text-xs font-mono">
+        <div className="bg-white p-2 rounded-xl border border-[#E2E8F0] shadow-sm">
+          <div className="text-[10px] text-[#64748B] uppercase">Database</div>
+          <div className="text-[#172033] font-bold truncate mt-0.5">{syncStatus?.database || 'neo4j'}</div>
         </div>
 
-        <div className="bg-[#101624] p-2 rounded border border-[#1e273b]">
-          <div className="text-[10px] text-slate-500 uppercase">Total Nodes</div>
-          <div className="text-cyan-400 font-bold mt-0.5">{stats?.total_nodes ?? 0}</div>
+        <div className="bg-white p-2 rounded-xl border border-[#E2E8F0] shadow-sm">
+          <div className="text-[10px] text-[#64748B] uppercase">Total Nodes</div>
+          <div className="text-sky-600 font-bold mt-0.5">{stats?.total_nodes ?? 0}</div>
         </div>
 
-        <div className="bg-[#101624] p-2 rounded border border-[#1e273b]">
-          <div className="text-[10px] text-slate-500 uppercase">Relationships</div>
-          <div className="text-indigo-400 font-bold mt-0.5">{stats?.total_relationships ?? 0}</div>
+        <div className="bg-white p-2 rounded-xl border border-[#E2E8F0] shadow-sm">
+          <div className="text-[10px] text-[#64748B] uppercase">Relationships</div>
+          <div className="text-indigo-600 font-bold mt-0.5">{stats?.total_relationships ?? 0}</div>
         </div>
 
-        <div className="bg-[#101624] p-2 rounded border border-[#1e273b]">
-          <div className="text-[10px] text-slate-500 uppercase">Outbox Synced</div>
-          <div className="text-emerald-400 font-bold mt-0.5">{stats?.outbox_statistics?.success ?? 0}</div>
+        <div className="bg-white p-2 rounded-xl border border-[#E2E8F0] shadow-sm">
+          <div className="text-[10px] text-[#64748B] uppercase">Outbox Synced</div>
+          <div className="text-emerald-600 font-bold mt-0.5">{stats?.outbox_statistics?.success ?? 0}</div>
         </div>
 
-        <div className="bg-[#101624] p-2 rounded border border-[#1e273b]">
-          <div className="text-[10px] text-slate-500 uppercase">Pending Sync</div>
-          <div className="text-amber-400 font-bold mt-0.5">{stats?.outbox_statistics?.pending ?? 0}</div>
+        <div className="bg-white p-2 rounded-xl border border-[#E2E8F0] shadow-sm">
+          <div className="text-[10px] text-[#64748B] uppercase">Pending Sync</div>
+          <div className="text-amber-600 font-bold mt-0.5">{stats?.outbox_statistics?.pending ?? 0}</div>
         </div>
 
-        <div className="bg-[#101624] p-2 rounded border border-[#1e273b]">
-          <div className="text-[10px] text-slate-500 uppercase">Sync Worker</div>
-          <div className="text-emerald-400 font-bold mt-0.5 flex items-center gap-1">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+        <div className="bg-white p-2 rounded-xl border border-[#E2E8F0] shadow-sm">
+          <div className="text-[10px] text-[#64748B] uppercase">Sync Worker</div>
+          <div className="text-emerald-600 font-bold mt-0.5 flex items-center gap-1">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
             {syncStatus?.worker_health || 'RUNNING'}
           </div>
         </div>
       </div>
 
       {/* ── NAVIGATION TABS ── */}
-      <div className="border-b border-[#1c2436] bg-[#0c101a] px-5 flex items-center justify-between shrink-0">
+      <div className="border-b border-[#E2E8F0] bg-white px-5 flex items-center justify-between shrink-0">
         <div className="flex gap-2">
           <button
             type="button"
             onClick={() => setActiveTab('explorer')}
             className={`px-3 py-2 text-xs font-mono font-medium transition-colors border-b-2 flex items-center gap-1.5 ${
               activeTab === 'explorer'
-                ? 'border-orange-500 text-orange-400'
-                : 'border-transparent text-slate-400 hover:text-white'
+                ? 'border-orange-500 text-orange-600 font-bold'
+                : 'border-transparent text-[#64748B] hover:text-[#172033]'
             }`}
           >
             <Layers size={14} />
@@ -446,8 +446,8 @@ export default function Neo4jGraphMonitor() {
             onClick={() => setActiveTab('events')}
             className={`px-3 py-2 text-xs font-mono font-medium transition-colors border-b-2 flex items-center gap-1.5 ${
               activeTab === 'events'
-                ? 'border-orange-500 text-orange-400'
-                : 'border-transparent text-slate-400 hover:text-white'
+                ? 'border-orange-500 text-orange-600 font-bold'
+                : 'border-transparent text-[#64748B] hover:text-[#172033]'
             }`}
           >
             <Clock size={14} />
@@ -459,11 +459,11 @@ export default function Neo4jGraphMonitor() {
             onClick={() => setActiveTab('demo')}
             className={`px-3 py-2 text-xs font-mono font-medium transition-colors border-b-2 flex items-center gap-1.5 ${
               activeTab === 'demo'
-                ? 'border-orange-500 text-orange-400'
-                : 'border-transparent text-slate-400 hover:text-white'
+                ? 'border-orange-500 text-orange-600 font-bold'
+                : 'border-transparent text-[#64748B] hover:text-[#172033]'
             }`}
           >
-            <Play size={14} className="text-orange-400" />
+            <Play size={14} className="text-orange-500" />
             <span>2-Min Demo Panel</span>
           </button>
         </div>

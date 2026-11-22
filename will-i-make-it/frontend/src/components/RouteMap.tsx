@@ -225,28 +225,28 @@ export default function RouteMap({
   const currentLayer = MAP_LAYERS[activeLayer];
 
   return (
-    <div className="relative w-full h-full rounded-2xl overflow-hidden border border-[#222938] shadow-2xl flex flex-col bg-[#0e1219]">
-      {/* Top Map Action Bar (Floating Meitriya Bar) */}
+    <div className="relative w-full h-full rounded-2xl overflow-hidden border border-[#E2E8F0] shadow-sm flex flex-col bg-white">
+      {/* Top Map Action Bar */}
       <div className="absolute top-3 left-3 right-3 z-[1000] flex items-center justify-between pointer-events-none gap-2">
         {/* Navigation / Precision Badge */}
-        <div className="bg-[#121620]/95 backdrop-blur-md px-3 py-1.5 rounded-xl border border-[#262f42] shadow-lg text-xs font-mono font-medium text-slate-200 flex items-center gap-2 pointer-events-auto">
-          <Navigation className="w-3.5 h-3.5 text-orange-400" />
-          <span className="font-bold text-white text-[11px] uppercase tracking-wider">ROAD-SNAPPED ROUTE</span>
-          <span className="text-[10px] bg-[#1a2130] text-cyan-400 font-mono px-1.5 py-0.5 rounded border border-[#242c3d]">
+        <div className="bg-white/95 backdrop-blur-md px-3 py-1.5 rounded-xl border border-[#E2E8F0] shadow-sm text-xs font-mono font-medium text-[#172033] flex items-center gap-2 pointer-events-auto">
+          <Navigation className="w-3.5 h-3.5 text-orange-500" />
+          <span className="font-bold text-[#172033] text-[11px] uppercase tracking-wider">ROAD-SNAPPED ROUTE</span>
+          <span className="text-[10px] bg-[#F1F4F8] text-sky-600 font-mono px-1.5 py-0.5 rounded border border-[#E2E8F0]">
             {exactRoadGeometry.length} GPS
           </span>
         </div>
 
         {/* Right Controls: Turn-by-Turn Nav & Layer Switcher */}
         <div className="flex items-center gap-2 pointer-events-auto">
-          {/* Open in Google Maps Button (Meitriya Orange Style) */}
+          {/* Open in Google Maps Button */}
           <a
             href={googleMapsUrl}
             target="_blank"
             rel="noopener noreferrer"
             onClick={() => playCockpitClick()}
             title="Open turn-by-turn route with charging stops directly in Google Maps"
-            className="flex items-center gap-1.5 bg-orange-500 hover:bg-orange-600 active:scale-95 text-white text-xs font-mono font-bold px-3 py-1.5 rounded-xl shadow-md shadow-orange-950/40 transition-all border border-orange-400/40"
+            className="flex items-center gap-1.5 bg-[#F97316] hover:bg-[#EA580C] active:scale-95 text-white text-xs font-mono font-bold px-3 py-1.5 rounded-xl shadow-sm transition-all"
           >
             <span>GOOGLE MAPS NAV</span>
             <ExternalLink className="w-3.5 h-3.5" />
@@ -260,15 +260,15 @@ export default function RouteMap({
                 playCockpitClick();
                 setShowLayerMenu(!showLayerMenu);
               }}
-              className="flex items-center gap-1.5 bg-[#121620]/95 hover:bg-[#1a202c] backdrop-blur-md px-2.5 py-1.5 rounded-xl border border-[#262f42] hover:border-slate-600 text-xs font-mono font-medium text-slate-200 shadow-md transition-colors"
+              className="flex items-center gap-1.5 bg-white/95 hover:bg-[#F8FAFC] backdrop-blur-md px-2.5 py-1.5 rounded-xl border border-[#E2E8F0] hover:border-slate-400 text-xs font-mono font-medium text-[#172033] shadow-sm transition-colors"
             >
-              <Layers className="w-3.5 h-3.5 text-orange-400" />
+              <Layers className="w-3.5 h-3.5 text-orange-500" />
               <span className="hidden sm:inline">{currentLayer.name}</span>
             </button>
 
             {showLayerMenu && (
-              <div className="absolute right-0 mt-1 w-48 bg-[#121620] border border-[#262f42] rounded-xl shadow-2xl py-1 z-[1100] backdrop-blur-xl">
-                <div className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400 border-b border-[#1e2535] font-mono">
+              <div className="absolute right-0 mt-1 w-48 bg-white border border-[#E2E8F0] rounded-xl shadow-xl py-1 z-[1100]">
+                <div className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400 border-b border-[#F1F4F8] font-mono">
                   Map Provider
                 </div>
                 {(Object.keys(MAP_LAYERS) as MapStyle[]).map(key => (
@@ -282,12 +282,12 @@ export default function RouteMap({
                     }}
                     className={`w-full text-left px-3 py-1.5 text-xs transition-colors flex items-center justify-between font-mono ${
                       activeLayer === key
-                        ? 'bg-orange-500/15 text-orange-400 font-bold'
-                        : 'text-slate-300 hover:bg-[#181e2b]'
+                        ? 'bg-orange-50 text-orange-600 font-bold'
+                        : 'text-[#172033] hover:bg-[#F8FAFC]'
                     }`}
                   >
                     <span>{MAP_LAYERS[key].name}</span>
-                    {activeLayer === key && <span className="text-orange-400 text-xs">✓</span>}
+                    {activeLayer === key && <span className="text-orange-600 text-xs">✓</span>}
                   </button>
                 ))}
               </div>
@@ -357,9 +357,9 @@ export default function RouteMap({
           <Marker position={[origin.lat, origin.lng]} icon={createOriginIcon()}>
             <Popup>
               <div className="p-1">
-                <span className="text-[10px] uppercase font-bold text-cyan-400 block tracking-wider font-mono">Start Origin</span>
-                <strong className="text-xs text-white">{origin.name}</strong>
-                <p className="text-[10px] text-slate-400 font-mono mt-0.5">{origin.lat.toFixed(4)}, {origin.lng.toFixed(4)}</p>
+                <span className="text-[10px] uppercase font-bold text-sky-600 block tracking-wider font-mono">Start Origin</span>
+                <strong className="text-xs text-[#172033]">{origin.name}</strong>
+                <p className="text-[10px] text-[#64748B] font-mono mt-0.5">{origin.lat.toFixed(4)}, {origin.lng.toFixed(4)}</p>
               </div>
             </Popup>
           </Marker>
@@ -370,9 +370,9 @@ export default function RouteMap({
           <Marker position={[dest.lat, dest.lng]} icon={createDestIcon()}>
             <Popup>
               <div className="p-1">
-                <span className="text-[10px] uppercase font-bold text-orange-400 block tracking-wider font-mono">Destination</span>
-                <strong className="text-xs text-white">{dest.name}</strong>
-                <p className="text-[10px] text-slate-400 font-mono mt-0.5">{dest.lat.toFixed(4)}, {dest.lng.toFixed(4)}</p>
+                <span className="text-[10px] uppercase font-bold text-[#F97316] block tracking-wider font-mono">Destination</span>
+                <strong className="text-xs text-[#172033]">{dest.name}</strong>
+                <p className="text-[10px] text-[#64748B] font-mono mt-0.5">{dest.lat.toFixed(4)}, {dest.lng.toFixed(4)}</p>
               </div>
             </Popup>
           </Marker>
@@ -392,24 +392,24 @@ export default function RouteMap({
               <Popup>
                 <div className="p-1.5 min-w-[210px]">
                   <div className="flex items-center justify-between gap-1 mb-1">
-                    <strong className="text-xs text-white font-sans">{charger.name}</strong>
-                    <span className={`text-[10px] px-1.5 py-0.2 rounded font-mono font-bold ${
-                      isDown ? 'bg-rose-500/20 text-rose-300' : 'bg-emerald-500/20 text-emerald-300'
+                    <strong className="text-xs text-[#172033] font-sans">{charger.name}</strong>
+                    <span className={`text-[10px] px-1.5 py-0.5 rounded font-mono font-bold ${
+                      isDown ? 'bg-rose-50 text-rose-700 border border-rose-200' : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
                     }`}>
                       {isDown ? 'OFFLINE' : `${(charger.reliability_score * 100).toFixed(0)}% Rel`}
                     </span>
                   </div>
 
-                  <p className="text-[11px] text-slate-300">
-                    {charger.operator} · <span className="font-mono text-orange-400 font-semibold">{charger.max_power_kw} kW</span>
+                  <p className="text-[11px] text-[#475569]">
+                    {charger.operator} · <span className="font-mono text-[#F97316] font-semibold">{charger.max_power_kw} kW</span>
                   </p>
-                  <p className="text-[10px] text-slate-400 mb-2 truncate">
+                  <p className="text-[10px] text-[#64748B] mb-2 truncate">
                     {charger.address}
                   </p>
 
                   <div className="flex flex-wrap gap-1 mb-2">
                     {charger.connector_types.map(ct => (
-                      <span key={ct} className="text-[9px] bg-[#1a2130] text-slate-300 px-1 py-0.5 rounded border border-[#242c3d] font-mono">
+                      <span key={ct} className="text-[9px] bg-[#F1F4F8] text-[#334155] px-1 py-0.5 rounded border border-[#E2E8F0] font-mono">
                         {ct}
                       </span>
                     ))}
@@ -421,8 +421,8 @@ export default function RouteMap({
                     onClick={() => onChargerToggle(charger.charger_id, !isDown)}
                     className={`w-full text-[11px] font-semibold py-1.5 px-2 rounded-lg transition-colors font-mono ${
                       isDown 
-                        ? 'bg-emerald-600 hover:bg-emerald-500 text-white' 
-                        : 'bg-rose-600 hover:bg-rose-500 text-white'
+                        ? 'bg-emerald-600 hover:bg-emerald-700 text-white' 
+                        : 'bg-rose-600 hover:bg-rose-700 text-white'
                     }`}
                   >
                     {isDown ? '✓ Restore Station' : '⚡ Simulate Outage'}
@@ -436,26 +436,26 @@ export default function RouteMap({
         {exactRoadGeometry.length > 1 && <FitBounds positions={exactRoadGeometry} />}
       </MapContainer>
 
-      {/* Floating Map Legend Overlay (Meitriya Style) */}
-      <div className="absolute bottom-3 right-3 bg-[#121620]/95 backdrop-blur-md p-2.5 rounded-xl border border-[#262f42] shadow-lg z-[1000] text-[11px] space-y-1.5 font-medium pointer-events-auto">
+      {/* Floating Map Legend Overlay */}
+      <div className="absolute bottom-3 right-3 bg-white/95 backdrop-blur-md p-2.5 rounded-xl border border-[#E2E8F0] shadow-sm z-[1000] text-[11px] space-y-1.5 font-medium pointer-events-auto">
         <div className="flex items-center gap-2">
           <div className="w-4 h-1 bg-sky-500 rounded-full" />
-          <span className="text-slate-200">Fastest Route</span>
+          <span className="text-[#334155]">Fastest Route</span>
         </div>
         {routeResult?.risk_aware_route && (
           <div className="flex items-center gap-2">
-            <div className="w-4 h-1 bg-emerald-400 border-t border-dashed border-emerald-300" />
-            <span className="text-slate-300">Risk-Aware Path</span>
+            <div className="w-4 h-1 bg-emerald-500 border-t border-dashed border-emerald-400" />
+            <span className="text-[#334155]">Risk-Aware Path</span>
           </div>
         )}
         <div className="flex items-center gap-2">
-          <div className="w-2.5 h-2.5 rounded-full bg-orange-500 border border-white" />
-          <span className="text-slate-300">Planned Charging Stop</span>
+          <div className="w-2.5 h-2.5 rounded-full bg-[#F97316] border border-white" />
+          <span className="text-[#334155]">Planned Charging Stop</span>
         </div>
         {disabledChargers.length > 0 && (
           <div className="flex items-center gap-2">
             <div className="w-2.5 h-2.5 rounded-full bg-rose-500 border border-white animate-pulse" />
-            <span className="text-rose-300 font-semibold">{disabledChargers.length} Simulated Outage</span>
+            <span className="text-rose-600 font-semibold">{disabledChargers.length} Simulated Outage</span>
           </div>
         )}
       </div>

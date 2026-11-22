@@ -179,7 +179,7 @@ export default function App() {
   const activeRouteOption = routeResult?.fastest_route;
 
   return (
-    <div className="min-h-screen bg-[#080b10] text-slate-100 flex flex-col antialiased selection:bg-orange-500 selection:text-white relative font-sans">
+    <div className="min-h-screen bg-[#F6F8FB] text-[#172033] flex flex-col antialiased selection:bg-orange-500 selection:text-white relative font-sans">
       {/* 3D EV Boot Startup Scene (Plays once, skippable) */}
       {showBootScreen && (
         <EVCockpitBoot onComplete={handleBootComplete} />
@@ -193,7 +193,7 @@ export default function App() {
           opacity: showBootScreen ? 0 : 1
         }}
       >
-        {/* Left Vertical Navigation Rail (Meitriya Style) */}
+        {/* Left Vertical Navigation Rail */}
         <NavigationRail
           activeView={activeView}
           onViewChange={(view) => {
@@ -223,22 +223,22 @@ export default function App() {
 
           {/* Backend Offline Warning Banner */}
           {backendHealth.ok === false && (
-            <div className="bg-rose-950/80 border-b border-rose-800/80 px-4 py-2 text-center text-xs text-rose-200">
-              ⚠️ Backend API unreachable at <code className="bg-rose-900/60 px-1 py-0.5 rounded font-mono">127.0.0.1:8000</code>. 
-              Run <code className="bg-rose-900/60 px-1 py-0.5 rounded font-mono">run_backend.bat</code> in the project root.
+            <div className="bg-rose-100 border-b border-rose-300 px-4 py-2 text-center text-xs text-rose-800">
+              ⚠️ Backend API unreachable at <code className="bg-rose-200 px-1 py-0.5 rounded font-mono">127.0.0.1:8000</code>. 
+              Run <code className="bg-rose-200 px-1 py-0.5 rounded font-mono">run_backend.bat</code> in the project root.
             </div>
           )}
 
           {/* Main Stage: Graph Monitor OR Dual-Column Map Workspace */}
           {activeView === 'graph' ? (
             <div className="flex-1 w-full h-full min-h-0 p-3 sm:p-5 overflow-hidden">
-              <div className="w-full h-full rounded-2xl overflow-hidden border border-[#1e2535] shadow-2xl">
+              <div className="w-full h-full rounded-2xl overflow-hidden border border-[#E2E8F0] shadow-sm bg-white">
                 <Neo4jGraphMonitor />
               </div>
             </div>
           ) : (
             <div className="flex-1 flex flex-col lg:flex-row min-h-0 overflow-y-auto lg:overflow-hidden p-3 sm:p-5 gap-4">
-            {/* Left Control / Information Column (Scrollable) */}
+            {/* Left Control / Information Column (Scrollable, ~40% width on desktop) */}
             <div className="w-full lg:w-[420px] xl:w-[460px] 2xl:w-[480px] flex flex-col shrink-0 lg:overflow-y-auto pr-0 lg:pr-1 gap-4">
               {activeView === 'planner' && (
                 <TripPlanner
@@ -273,10 +273,10 @@ export default function App() {
               )}
 
               {activeView === 'results' && !routeResult && (
-                <div className="bg-[#121620] border border-[#222938] rounded-2xl flex flex-col items-center justify-center p-8 text-center text-slate-400">
-                  <Compass size={32} className="text-orange-400 mb-2" />
-                  <h3 className="text-sm font-bold text-white mb-1 font-mono uppercase">NO ACTIVE ROUTE CALCULATED</h3>
-                  <p className="text-xs text-slate-400 mb-4">Plan a journey in the Trip Planner to generate route decisions.</p>
+                <div className="bg-white border border-[#E2E8F0] rounded-2xl flex flex-col items-center justify-center p-8 text-center text-[#64748B] shadow-sm">
+                  <Compass size={32} className="text-[#F97316] mb-2" />
+                  <h3 className="text-sm font-bold text-[#172033] mb-1 font-mono uppercase">NO ACTIVE ROUTE CALCULATED</h3>
+                  <p className="text-xs text-[#64748B] mb-4">Plan a journey in the Trip Planner to generate route decisions.</p>
                   <button
                     type="button"
                     onClick={() => setActiveView('planner')}
@@ -322,10 +322,10 @@ export default function App() {
               )}
             </div>
 
-            {/* Right Column: Large Interactive Central Map & Dynamic Action Ribbon */}
-            <div className="flex-1 flex flex-col min-w-0 min-h-[440px] lg:min-h-0 gap-3">
-              {/* Central Map Canvas (The Visual Centerpiece) */}
-              <div className="flex-1 w-full min-h-[380px] lg:min-h-0 relative">
+            {/* Right Column: Visualization & Map Dashboard (~60% width on desktop) */}
+            <div className="flex-1 flex flex-col min-w-0 overflow-y-auto pr-0 lg:pr-1 gap-4">
+              {/* Controlled-Height Interactive Map Canvas */}
+              <div className="w-full h-[380px] sm:h-[400px] lg:h-[440px] shrink-0 relative">
                 <RouteMap
                   routeResult={routeResult}
                   selectedRouteId={selectedRouteId}
@@ -336,63 +336,80 @@ export default function App() {
                 />
               </div>
 
-              {/* Dynamic Quick Ribbon under map when route is calculated */}
+              {/* Dynamic Route Summary Card under the Map */}
               {routeResult && (
-                <div className="bg-[#121620] border border-[#222938] rounded-2xl px-4 py-3 shadow-xl flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 shrink-0">
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${
-                      routeResult.fastest_route.feasible 
-                        ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' 
-                        : 'bg-rose-500/20 text-rose-400 border border-rose-500/30'
-                    }`}>
-                      <Zap size={16} />
-                    </div>
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs font-bold font-mono text-white">
-                          {routeResult.fastest_route.feasible ? 'FEASIBLE ROUTE' : 'RANGE CRITICAL'}
-                        </span>
-                        <span className="text-[10px] bg-[#1a2130] text-orange-400 font-mono font-bold px-1.5 py-0.5 rounded border border-[#262f42]">
-                          +{routeResult.fastest_route.feasibility_margin_kwh.toFixed(1)} kWh Reserve
-                        </span>
+                <div className="bg-white border border-[#E2E8F0] rounded-2xl p-4 shadow-sm flex flex-col gap-3 shrink-0">
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
+                        routeResult.fastest_route.feasible 
+                          ? 'bg-emerald-50 text-emerald-600 border border-emerald-200' 
+                          : 'bg-rose-50 text-rose-600 border border-rose-200'
+                      }`}>
+                        <Zap size={20} />
                       </div>
-                      <p className="text-[11px] text-slate-400 truncate">
-                        P50: <strong className="text-teal-400">{routeResult.fastest_route.energy_result.total_kwh_p50.toFixed(1)} kWh</strong> · P90: <strong className="text-orange-400">{routeResult.fastest_route.energy_result.total_kwh_p90.toFixed(1)} kWh</strong> · Arrival SoC: <strong className="text-white">{routeResult.fastest_route.energy_result.soc_final_p90_pct.toFixed(0)}%</strong>
-                      </p>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-bold font-mono text-[#172033]">
+                            {routeResult.fastest_route.feasible ? 'FEASIBLE ROUTE' : 'RANGE CRITICAL'}
+                          </span>
+                          <span className="text-xs bg-orange-50 text-orange-700 font-mono font-bold px-2 py-0.5 rounded border border-orange-200">
+                            +{routeResult.fastest_route.feasibility_margin_kwh.toFixed(1)} kWh Reserve
+                          </span>
+                        </div>
+                        <p className="text-xs text-[#64748B] truncate mt-0.5">
+                          P50: <strong className="text-teal-700">{routeResult.fastest_route.energy_result.total_kwh_p50.toFixed(1)} kWh</strong> · P90: <strong className="text-orange-700">{routeResult.fastest_route.energy_result.total_kwh_p90.toFixed(1)} kWh</strong> · Arrival SoC: <strong className="text-[#172033]">{routeResult.fastest_route.energy_result.soc_final_p90_pct.toFixed(0)}%</strong>
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Navigation Shortcuts */}
+                    <div className="flex items-center gap-2 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          playCockpitClick();
+                          setActiveView('results');
+                        }}
+                        className="px-3.5 py-2 rounded-xl bg-[#F97316] hover:bg-[#EA580C] text-white text-xs font-mono font-bold transition-all shadow-sm"
+                      >
+                        Decision View
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          playCockpitClick();
+                          setActiveView('energy');
+                        }}
+                        className="px-3.5 py-2 rounded-xl bg-white hover:bg-[#F8FAFC] text-[#334155] border border-[#CBD5E1] text-xs font-mono font-medium transition-all shadow-sm"
+                      >
+                        Energy Curves
+                      </button>
                     </div>
                   </div>
 
-                  {/* Navigation Shortcuts */}
-                  <div className="flex items-center gap-2 shrink-0">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        playCockpitClick();
-                        setActiveView('results');
-                      }}
-                      className="px-3 py-1.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white text-xs font-mono font-bold transition-all shadow-md shadow-orange-950/40"
-                    >
-                      Decision View
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        playCockpitClick();
-                        setActiveView('energy');
-                      }}
-                      className="px-3 py-1.5 rounded-xl bg-[#181e2b] hover:bg-[#202738] text-slate-200 border border-[#262f42] text-xs font-mono font-medium transition-all"
-                    >
-                      Energy Curves
-                    </button>
-                  </div>
+                  {/* Planned Charging Stops summary strip */}
+                  {routeResult.fastest_route.charging_stops.length > 0 && (
+                    <div className="pt-2 border-t border-[#F1F4F8] flex items-center gap-2 overflow-x-auto text-xs font-mono">
+                      <span className="text-[10px] text-[#64748B] font-bold uppercase tracking-wider shrink-0">STOPS:</span>
+                      {routeResult.fastest_route.charging_stops.map((stop, sidx) => (
+                        <div key={stop.charger.charger_id || sidx} className="flex items-center gap-1.5 bg-[#F8FAFC] px-2.5 py-1 rounded-lg border border-[#E2E8F0] shrink-0 text-[#334155]">
+                          <span className="w-1.5 h-1.5 rounded-full bg-[#F97316]" />
+                          <span className="font-semibold text-[#172033]">{stop.charger.name.slice(0, 18)}</span>
+                          <span className="text-[10px] text-orange-600">({stop.arrive_soc_pct.toFixed(0)}% → {stop.depart_soc_pct.toFixed(0)}%)</span>
+                          <span className="text-[10px] text-[#64748B]">{stop.charge_duration_min.toFixed(0)}m</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
 
               {/* Loading Indicator */}
               {loading && (
-                <div className="bg-[#121620] border border-[#222938] rounded-2xl flex items-center justify-center h-20 shadow-xl shrink-0">
-                  <div className="flex items-center gap-3 text-orange-400 text-xs font-mono font-bold tracking-wider">
-                    <div className="w-4 h-4 border-2 border-orange-400 border-t-transparent rounded-full animate-spin" />
+                <div className="bg-white border border-[#E2E8F0] rounded-2xl flex items-center justify-center h-20 shadow-sm shrink-0">
+                  <div className="flex items-center gap-3 text-orange-600 text-xs font-mono font-bold tracking-wider">
+                    <div className="w-4 h-4 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
                     <span>CALCULATING HIGHWAY FORCES & CHARGER REACHABILITY...</span>
                   </div>
                 </div>
@@ -400,12 +417,12 @@ export default function App() {
 
               {/* Routing Error Notice */}
               {error && !loading && (
-                <div className="bg-[#1c1214] border border-rose-500/40 rounded-2xl p-3.5 shadow-xl shrink-0">
-                  <div className="flex items-center gap-2 text-rose-400 text-xs font-bold uppercase tracking-wider font-mono">
+                <div className="bg-rose-50 border border-rose-200 rounded-2xl p-3.5 shadow-sm shrink-0">
+                  <div className="flex items-center gap-2 text-rose-700 text-xs font-bold uppercase tracking-wider font-mono">
                     <AlertTriangle size={15} />
                     Routing Constraint Alert
                   </div>
-                  <p className="text-xs text-rose-200 mt-0.5">{error}</p>
+                  <p className="text-xs text-rose-800 mt-0.5">{error}</p>
                 </div>
               )}
             </div>
