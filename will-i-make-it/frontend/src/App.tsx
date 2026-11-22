@@ -10,6 +10,7 @@ import ExplainPanel from './components/ExplainPanel';
 import RouteMap from './components/RouteMap';
 import EVCockpitBoot from './components/EVCockpitBoot';
 import Neo4jGraphMonitor from './components/Neo4jGraphMonitor';
+import SarvamVoiceAssistant from './components/SarvamVoiceAssistant';
 import { healthCheck, planRoute } from './utils/api';
 import { isAudioEnabled, setAudioEnabled, playCockpitClick } from './utils/audioService';
 import type { RoutePlanResponse, VehicleProfile } from './types/api';
@@ -299,6 +300,17 @@ export default function App() {
                   disabledChargers={disabledChargers}
                   onChargerToggle={handleChargerToggle}
                   onResetDisabledChargers={resetDisabledChargers}
+                />
+              )}
+
+              {activeView === 'voice' && (
+                <SarvamVoiceAssistant
+                  vehicle={vehicle}
+                  currentRoute={routeResult}
+                  onApplyRoute={(newRoute) => {
+                    setRouteResult(newRoute);
+                    setActiveView('results');
+                  }}
                 />
               )}
 

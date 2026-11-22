@@ -1,10 +1,10 @@
 import React from 'react';
 import { 
   Navigation, CheckCircle2, Zap, BarChart3, Radio, 
-  Volume2, VolumeX, ShieldCheck, Database, Layers
+  Volume2, VolumeX, ShieldCheck, Database, Layers, Mic
 } from 'lucide-react';
 
-export type ActiveView = 'planner' | 'results' | 'energy' | 'chargers' | 'explain' | 'graph';
+export type ActiveView = 'planner' | 'results' | 'energy' | 'chargers' | 'voice' | 'explain' | 'graph';
 
 interface Props {
   activeView: ActiveView;
@@ -51,6 +51,12 @@ export default function NavigationRail({
       label: 'Stations',
       icon: <Zap size={18} />,
       badge: disabledChargersCount > 0 ? disabledChargersCount : undefined,
+      enabled: true,
+    },
+    {
+      id: 'voice',
+      label: 'Voice AI',
+      icon: <Mic size={18} />,
       enabled: true,
     },
     {

@@ -1,10 +1,10 @@
 """
-Sarvam AI Speech Integration (Optional Scaffolding)
-===================================================
+Sarvam AI Speech Integration
+============================
 Server-side wrapper for Sarvam API speech-to-text (STT) and text-to-speech (TTS).
-Disabled by default (SARVAM_ENABLED=false).
 Only active when SARVAM_ENABLED=true and SARVAM_API_KEY is configured.
-Provides strict payload validation, credential sanitization, and graceful fallback.
+Provides strict payload validation, credential sanitization, modern model compatibility,
+and graceful fallback.
 
 API Reference: https://docs.sarvam.ai
 """
@@ -12,8 +12,12 @@ from __future__ import annotations
 import os
 import re
 import base64
-from typing import Optional, Tuple
+import logging
+from datetime import datetime, timezone
+from typing import Optional, Tuple, Dict, Any
 import requests
+
+logger = logging.getLogger(__name__)
 
 SARVAM_BASE_URL = "https://api.sarvam.ai"
 STT_ENDPOINT = f"{SARVAM_BASE_URL}/speech-to-text"
@@ -22,13 +26,44 @@ TTS_ENDPOINT = f"{SARVAM_BASE_URL}/text-to-speech"
 MAX_AUDIO_BYTES = 5 * 1024 * 1024  # 5 MB
 MAX_TEXT_CHARS = 2000  # 2,000 characters
 
+DEFAULT_STT_MODEL = "saaras:v4"
+DEFAULT_TTS_MODEL = "bulbul:v3"
+DEFAULT_SPEAKER = "simran"
+
 ALLOWED_LANGUAGES = {
     "hi-IN", "bn-IN", "ta-IN", "te-IN", "gu-IN",
-    "mr-IN", "kn-IN", "ml-IN", "pa-IN", "od-IN", "en-IN"
+    "mr-IN", "kn-IN", "ml-IN", "pa-IN", "od-IN", "en-IN",
+    "as-IN", "ur-IN", "unknown"
 }
 
 ALLOWED_SPEAKERS = {
+    "simran", "ritu", "aditya", "shubh", "anushka", "priya", "neha",
+    "rahul", "pooja", "rohan", "kavya", "amit", "dev", "ishita",
+    "shreya", "ratan", "varun", "manan", "sumit", "roopa", "kabir",
+    "aayan", "ashutosh", "advait", "anand", "tanya", "tarun", "sunny",
+    "mani", "gokul", "vijay", "shruti", "suhani", "mohit", "kavitha",
+    "rehan", "soham", "rupali", "niharika", "manisha", "vidya", "arya",
+    "karun", "hitesh", "abhilash",
+    # Legacy speaker names mapped automatically:
     "meera", "pavithra", "maitreyi", "arvind", "amol"
+}
+
+LEGACY_SPEAKER_MAP = {
+    "meera": "simran",
+    "pavithra": "priya",
+    "maitreyi": "ritu",
+    "arvind": "aditya",
+    "amol": "shubh"
+}
+
+# In-memory operational health tracking
+_health_state: Dict[str, Any] = {
+    "last_stt_success_at": None,
+    "last_tts_success_at": None,
+    "stt_call_count": 0,
+    "tts_call_count": 0,
+    "last_error": None,
+    "last_error_at": None,
 }
 
 
@@ -43,6 +78,27 @@ def is_configured() -> bool:
     return is_enabled() and bool(key)
 
 
+def get_stt_model() -> str:
+    m = os.environ.get("SARVAM_STT_MODEL", DEFAULT_STT_MODEL).strip()
+    # Guard against deprecated saarika:v2
+    if not m or m.lower() in ("saarika:v2", "saarika:v1"):
+        return DEFAULT_STT_MODEL
+    return m
+
+
+def get_tts_model() -> str:
+    m = os.environ.get("SARVAM_TTS_MODEL", DEFAULT_TTS_MODEL).strip()
+    # Guard against deprecated bulbul:v1 or bulbul:v2
+    if not m or m.lower() in ("bulbul:v1", "bulbul:v2"):
+        return DEFAULT_TTS_MODEL
+    return m
+
+
+def resolve_speaker(speaker: str) -> str:
+    spk = speaker.strip().lower()
+    return LEGACY_SPEAKER_MAP.get(spk, spk)
+
+
 def _sanitize_error(error_msg: str) -> str:
     """Sanitize error messages to ensure API keys and auth headers are never leaked."""
     key = os.environ.get("SARVAM_API_KEY", "").strip()
@@ -50,6 +106,8 @@ def _sanitize_error(error_msg: str) -> str:
         error_msg = error_msg.replace(key, "[REDACTED_KEY]")
     # Redact potential authorization header patterns
     error_msg = re.sub(r"(?i)api-subscription-key['\":\s]+[\w\-]+", "api-subscription-key: [REDACTED]", error_msg)
+    _health_state["last_error"] = error_msg
+    _health_state["last_error_at"] = datetime.now(timezone.utc).isoformat()
     return error_msg
 
 
@@ -79,16 +137,32 @@ def speech_to_text(audio_b64: str, language_code: str = "hi-IN") -> Tuple[bool, 
     if len(audio_bytes) > MAX_AUDIO_BYTES:
         return False, f"Audio payload exceeds maximum size limit of {MAX_AUDIO_BYTES // (1024*1024)} MB."
 
+    # Inspect audio magic headers for correct mime and extension
+    filename = "audio.wav"
+    content_type = "audio/wav"
+    if audio_bytes.startswith(b"\x1a\x45\xdf\xa3"):
+        filename = "audio.webm"
+        content_type = "audio/webm"
+    elif audio_bytes.startswith(b"OggS"):
+        filename = "audio.ogg"
+        content_type = "audio/ogg"
+    elif audio_bytes.startswith(b"ID3") or (len(audio_bytes) > 2 and audio_bytes[:2] in (b"\xff\xfb", b"\xff\xf3")):
+        filename = "audio.mp3"
+        content_type = "audio/mp3"
+
     try:
         headers = {
             "api-subscription-key": api_key,
         }
-        files = {"file": ("audio.wav", audio_bytes, "audio/wav")}
-        data = {"language_code": language_code, "model": "saarika:v2"}
+        files = {"file": (filename, audio_bytes, content_type)}
+        stt_model = get_stt_model()
+        data = {"language_code": language_code, "model": stt_model}
         resp = requests.post(STT_ENDPOINT, headers=headers, files=files, data=data, timeout=15)
         resp.raise_for_status()
         result = resp.json()
         transcript = result.get("transcript", "")
+        _health_state["last_stt_success_at"] = datetime.now(timezone.utc).isoformat()
+        _health_state["stt_call_count"] += 1
         return True, transcript
     except requests.exceptions.Timeout:
         return False, "Sarvam STT service request timed out after 15 seconds."
@@ -101,7 +175,7 @@ def speech_to_text(audio_b64: str, language_code: str = "hi-IN") -> Tuple[bool, 
 
 
 def text_to_speech(text: str, language_code: str = "hi-IN",
-                   speaker: str = "meera") -> Tuple[bool, str]:
+                   speaker: str = DEFAULT_SPEAKER) -> Tuple[bool, str]:
     """
     Convert text to speech via Sarvam TTS.
     Returns (success, base64_audio_or_error_message).
@@ -125,16 +199,20 @@ def text_to_speech(text: str, language_code: str = "hi-IN",
     if len(text) > MAX_TEXT_CHARS:
         return False, f"Text input exceeds maximum limit of {MAX_TEXT_CHARS} characters."
 
+    resolved_speaker = resolve_speaker(speaker)
+    tts_model = get_tts_model()
+
     try:
         headers = {
             "api-subscription-key": api_key,
             "Content-Type": "application/json",
         }
+        # Provide compatible schema supported across bulbul:v3 and bulbul:v4-flash
         payload = {
-            "inputs": [text[:500]],  # Sarvam TTS single-segment char limit
+            "inputs": [text[:500]],
             "target_language_code": language_code,
-            "speaker": speaker,
-            "model": "bulbul:v1",
+            "speaker": resolved_speaker,
+            "model": tts_model,
         }
         resp = requests.post(TTS_ENDPOINT, headers=headers, json=payload, timeout=20)
         resp.raise_for_status()
@@ -142,6 +220,8 @@ def text_to_speech(text: str, language_code: str = "hi-IN",
         audios = result.get("audios", [])
         if not audios:
             return False, "No audio data returned by Sarvam TTS."
+        _health_state["last_tts_success_at"] = datetime.now(timezone.utc).isoformat()
+        _health_state["tts_call_count"] += 1
         return True, audios[0]
     except requests.exceptions.Timeout:
         return False, "Sarvam TTS service request timed out after 20 seconds."
@@ -151,6 +231,30 @@ def text_to_speech(text: str, language_code: str = "hi-IN",
         return False, _sanitize_error(f"Sarvam TTS API HTTP error {status}: {text}")
     except Exception as e:
         return False, _sanitize_error(f"Sarvam TTS error: {str(e)}")
+
+
+def get_sarvam_health() -> Dict[str, Any]:
+    """Retrieve operational status, active models, and recent activity for health panel."""
+    enabled = is_enabled()
+    configured = is_configured()
+    return {
+        "enabled": enabled,
+        "configured": configured,
+        "stt_model": get_stt_model(),
+        "tts_model": get_tts_model(),
+        "default_speaker": DEFAULT_SPEAKER,
+        "default_language": "hi-IN",
+        "supported_languages": sorted(list(ALLOWED_LANGUAGES)),
+        "supported_speakers": sorted([s for s in ALLOWED_SPEAKERS if s not in LEGACY_SPEAKER_MAP]),
+        "stt_status": "OPERATIONAL" if configured else ("DISABLED" if not enabled else "NOT_CONFIGURED"),
+        "tts_status": "OPERATIONAL" if configured else ("DISABLED" if not enabled else "NOT_CONFIGURED"),
+        "last_stt_success_at": _health_state["last_stt_success_at"],
+        "last_tts_success_at": _health_state["last_tts_success_at"],
+        "stt_call_count": _health_state["stt_call_count"],
+        "tts_call_count": _health_state["tts_call_count"],
+        "last_error": _health_state["last_error"],
+        "last_error_at": _health_state["last_error_at"],
+    }
 
 
 def build_explanation_text(route_result: dict) -> str:

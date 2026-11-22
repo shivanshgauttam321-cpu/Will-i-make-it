@@ -76,6 +76,9 @@ export const simulateTrip = (payload: {
 export const getSarvamStatus = () =>
   api.get('/sarvam/status').then(r => r.data);
 
+export const getSarvamHealth = () =>
+  api.get('/sarvam/health').then(r => r.data);
+
 export const explainRoute = (routeResult: unknown, languageCode?: string) =>
   api.post('/sarvam/explain', { route_result: routeResult, language_code: languageCode ?? 'hi-IN' })
     .then(r => r.data);
@@ -91,7 +94,7 @@ export const converseWithSarvam = (payload: {
   speaker?: string;
 }) => api.post('/sarvam/converse', payload).then(r => r.data);
 
-export const textToSpeech = (text: string, language_code = 'hi-IN', speaker = 'meera') =>
+export const textToSpeech = (text: string, language_code = 'hi-IN', speaker = 'simran') =>
   api.post('/sarvam/tts', { text, language_code, speaker }).then(r => r.data);
 
 export const speechToText = (audio_b64: string, language_code = 'hi-IN') =>

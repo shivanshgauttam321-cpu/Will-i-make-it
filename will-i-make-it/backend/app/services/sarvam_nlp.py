@@ -34,59 +34,71 @@ def extract_entities_and_intent(text: str) -> Dict[str, Any]:
     lower_text = clean_text.lower()
 
     intent = INTENT_FEASIBILITY
-    if any(k in lower_text for k in ["why", "explain", "kyun", "kyu", "reason", "karan"]):
+    if any(k in lower_text for k in ["why", "explain", "kyun", "kyu", "reason", "karan", "कारण", "क्यों"]):
         intent = INTENT_EXPLANATION
-    elif any(k in lower_text for k in ["how much battery", "kitni battery", "battery kitni", "kitna charge", "remaining soc", "consumption"]):
+    elif any(k in lower_text for k in ["how much battery", "kitni battery", "battery kitni", "kitna charge", "remaining soc", "consumption", "कितनी बैटरी", "कितना चार्ज"]):
         intent = INTENT_BATTERY
-    elif any(k in lower_text for k in ["charger", "charging", "station", "stop", "kahan hai", "plug"]):
+    elif any(k in lower_text for k in ["charger", "charging", "station", "stop", "kahan hai", "plug", "चार्जर", "चार्जिंग", "स्टेशन"]):
         intent = INTENT_CHARGER
 
     # 1. Extract Starting SOC
     soc_start = None
-    soc_matches = re.findall(r"(\d{1,3})\s*(?:%|percent)\s*(?:battery|soc|charge)?", lower_text)
+    soc_matches = re.findall(r"(\d{1,3})\s*(?:%|percent|प्रतिशत|फीसदी)?\s*(?:battery|soc|charge|बैटरी)?", lower_text)
     if not soc_matches:
-        soc_matches = re.findall(r"(?:battery|soc|charge)\s*(?:is|at|of|h|hai)?\s*(\d{1,3})", lower_text)
+        soc_matches = re.findall(r"(?:battery|soc|charge|बैटरी)\s*(?:is|at|of|h|hai|है)?\s*(\d{1,3})", lower_text)
     if soc_matches:
-        try:
-            val = float(soc_matches[0])
-            if 0.0 <= val <= 100.0:
-                soc_start = val
-        except ValueError:
-            pass
+        for m in soc_matches:
+            try:
+                val = float(m)
+                if 0.0 <= val <= 100.0:
+                    soc_start = val
+                    break
+            except ValueError:
+                pass
 
-    # 2. Extract Origin and Destination
+    # 2. Extract Origin and Destination (Supports Latin and Devanagari Hindi)
     origin_name = None
     dest_name = None
 
+    # Unicode word pattern matching English letters and Devanagari
+    W = r"[a-zA-Z\u0900-\u097F]+(?:\s+[a-zA-Z\u0900-\u097F]+)?"
+
     # Pattern A: reach Y from X / Y from X
-    reach_from = re.search(r"(?:reach|go to)\s+([a-zA-Z]+(?:\s+[a-zA-Z]+)?)\s+from\s+([a-zA-Z]+(?:\s+[a-zA-Z]+)?)", clean_text, re.IGNORECASE)
+    reach_from = re.search(rf"(?:reach|go to|travel to)\s+({W})\s+from\s+({W})", clean_text, re.IGNORECASE)
     if reach_from:
         dest_name = reach_from.group(1).strip()
         origin_name = reach_from.group(2).strip()
     else:
         # Pattern B: from X to Y
-        from_to = re.search(r"from\s+([a-zA-Z]+(?:\s+[a-zA-Z]+)?)\s+to\s+([a-zA-Z]+(?:\s+[a-zA-Z]+)?)", clean_text, re.IGNORECASE)
+        from_to = re.search(rf"from\s+({W})\s+to\s+({W})", clean_text, re.IGNORECASE)
         if from_to:
             origin_name = from_to.group(1).strip()
             dest_name = from_to.group(2).strip()
         else:
-            # Pattern C: X se Y
-            se_to = re.search(r"([a-zA-Z]+(?:\s+[a-zA-Z]+)?)\s+se\s+([a-zA-Z]+(?:\s+[a-zA-Z]+)?)", clean_text, re.IGNORECASE)
+            # Pattern C: X se Y / X से Y
+            se_to = re.search(rf"({W})\s+(?:se|से)\s+({W})", clean_text, re.IGNORECASE)
             if se_to:
                 origin_name = se_to.group(1).strip()
                 dest_name = se_to.group(2).strip()
             else:
-                # Pattern D: Hindi destination postposition: [City] tak / [City] pahunchne
-                dest_match_rev = re.search(r"([a-zA-Z]+(?:\s+[a-zA-Z]+)?)\s+(?:tak|pahunch(?:ne)?)", clean_text, re.IGNORECASE)
+                # Pattern D: Hindi destination postposition: [City] tak / [City] तक / pahunchne
+                dest_match_rev = re.search(rf"({W})\s+(?:tak|तक|pahunch(?:ne)?|पहुंच(?:ने)?)", clean_text, re.IGNORECASE)
                 if dest_match_rev:
                     dest_name = dest_match_rev.group(1).strip()
                 else:
-                    dest_match = re.search(r"(?:reach|go to|to)\s+([a-zA-Z]+(?:\s+[a-zA-Z]+)?)", clean_text, re.IGNORECASE)
+                    dest_match = re.search(rf"(?:reach|go to|to|तक)\s+({W})", clean_text, re.IGNORECASE)
                     if dest_match:
                         dest_name = dest_match.group(1).strip()
 
-    # Clean known noise words from destination / origin
-    noise_words = ["can", "my", "ev", "i", "make", "it", "car", "gaadi", "gadi", "please", "kya", "meri", "hum", "mujhe"]
+    # Clean known noise words and grammatical particles from destination / origin
+    noise_words = {
+        "can", "my", "ev", "i", "make", "it", "car", "gaadi", "gadi", "please", "kya", "meri", "hum",
+        "mujhe", "with", "at", "on", "from", "to", "go", "reach", "travel", "trip", "percent", "battery",
+        "soc", "charge", "will", "does", "kripya", "hamari", "electric", "vehicle",
+        "क्या", "मेरी", "गाड़ी", "कार", "ईवी", "कृपया", "मुझे", "साथ", "के", "में", "पर", "जा", "सकती",
+        "सकता", "है", "तक", "बैटरी", "प्रतिशत", "फीसदी"
+    }
+
     if dest_name:
         dest_tokens = [w for w in dest_name.split() if w.lower() not in noise_words]
         dest_name = " ".join(dest_tokens).strip() or dest_name
@@ -249,25 +261,39 @@ def execute_conversational_trip_query(
                 )
     else:  # General FEASIBILITY_CHECK
         if selected_route.feasible:
-            if is_hindi:
-                explanation = (
-                    f"Haan, aapki EV {dest_loc[2]} aasaani se pahunch sakti hai! "
-                    f"Arrival par battery lagbhag {energy.soc_final_p90_pct:.0f}% bachegi. Trip energy {energy.total_kwh_p50:.1f} kWh hai."
-                )
+            if stops:
+                stop_str = f"{len(stops)} charging stop{'s' if len(stops) > 1 else ''}"
+                if is_hindi:
+                    explanation = (
+                        f"Haan, aapki EV raste mein {len(stops)} charging stop ke saath {dest_loc[2]} pahunch sakti hai. "
+                        f"Final destination par battery lagbhag {energy.soc_final_p90_pct:.0f}% bachegi."
+                    )
+                else:
+                    explanation = (
+                        f"Yes, your EV will make it to {dest_loc[2]} with {stop_str} planned along the route. "
+                        f"Expected arrival battery is {energy.soc_final_p90_pct:.0f}%."
+                    )
             else:
-                explanation = (
-                    f"Yes, your EV will make it to {dest_loc[2]}! "
-                    f"Expected arrival battery is {energy.soc_final_p90_pct:.0f}% with estimated energy consumption of {energy.total_kwh_p50:.1f} kWh."
-                )
+                if is_hindi:
+                    explanation = (
+                        f"Haan, aapki EV {dest_loc[2]} seedhe bina intermediate charging ke aasaani se pahunch sakti hai! "
+                        f"Arrival par battery lagbhag {energy.soc_final_p90_pct:.0f}% bachegi. Trip energy {energy.total_kwh_p50:.1f} kWh hai."
+                    )
+                else:
+                    explanation = (
+                        f"Yes, your EV will make it directly to {dest_loc[2]} without intermediate charging! "
+                        f"Expected arrival battery is {energy.soc_final_p90_pct:.0f}% with estimated energy consumption of {energy.total_kwh_p50:.1f} kWh."
+                    )
         else:
             if is_hindi:
                 explanation = (
                     f"Nahi, current battery ({v.soc_start_pct:.0f}%) ke saath aap {dest_loc[2]} nahi pahunch payenge. "
-                    f"Raste mein charging stop lena padega."
+                    f"Starting charge kam hai aur raste ke charger tak battery khatam ho sakti hai."
                 )
             else:
                 explanation = (
-                    f"No, with your current battery ({v.soc_start_pct:.0f}%), you will not make it to {dest_loc[2]} without intermediate charging."
+                    f"No, with your current battery ({v.soc_start_pct:.0f}%), you will not make it to {dest_loc[2]}. "
+                    f"Battery level is insufficient to reach the nearest charging station."
                 )
 
     return {

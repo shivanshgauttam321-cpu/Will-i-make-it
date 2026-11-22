@@ -19,7 +19,7 @@ export default function ExplainPanel({ routeResult, vehicle }: Props) {
   const [ttsError, setTtsError] = useState<string | null>(null);
   const [explainText, setExplainText] = useState<string | null>(null);
   const [selectedLang, setSelectedLang] = useState<'hi-IN' | 'en-IN'>('hi-IN');
-  const [selectedSpeaker, setSelectedSpeaker] = useState('meera');
+  const [selectedSpeaker, setSelectedSpeaker] = useState('simran');
 
   // Conversational Assistant states
   const [conversePrompt, setConversePrompt] = useState('');
