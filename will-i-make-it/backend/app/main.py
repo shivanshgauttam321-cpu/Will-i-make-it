@@ -7,9 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 import os
 
-from dotenv import load_dotenv
-
-load_dotenv()
+import app.config  # Deterministically resolves and loads backend/.env regardless of process CWD
 
 from app.routers import health, energy, routes, chargers, trips, sarvam, neo4j
 from app.services.charger_service import init_db

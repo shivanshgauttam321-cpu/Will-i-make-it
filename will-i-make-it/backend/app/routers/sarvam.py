@@ -78,11 +78,20 @@ def sarvam_health():
 
 
 def _raise_error(result: str):
-    is_validation = any(k in result for k in [
+    lower = result.lower()
+    if "authentication failed" in lower or "401" in result or "403" in result:
+        status_code = 401
+    elif "rate limit" in lower or "429" in result:
+        status_code = 429
+    elif "timed out" in lower or "504" in result:
+        status_code = 504
+    elif any(k in result for k in [
         "Unsupported language", "Unsupported speaker", "Invalid base64",
-        "exceeds maximum", "must be a non-empty"
-    ])
-    status_code = 400 if is_validation else 503
+        "exceeds maximum", "must be a non-empty", "bad request", "400"
+    ]):
+        status_code = 400
+    else:
+        status_code = 503
     raise HTTPException(status_code=status_code, detail=result)
 
 

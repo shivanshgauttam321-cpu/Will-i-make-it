@@ -9,6 +9,7 @@ and graceful fallback.
 API Reference: https://docs.sarvam.ai
 """
 from __future__ import annotations
+
 import os
 import re
 import base64
@@ -17,6 +18,17 @@ from datetime import datetime, timezone
 from typing import Optional, Tuple, Dict, Any
 import requests
 
+from app.config import (
+    is_sarvam_enabled,
+    is_sarvam_configured,
+    get_sarvam_api_key,
+    get_sarvam_stt_model,
+    get_sarvam_tts_model,
+    get_sarvam_default_speaker,
+    get_sarvam_default_language,
+    sanitize_secret,
+)
+
 logger = logging.getLogger(__name__)
 
 SARVAM_BASE_URL = "https://api.sarvam.ai"
@@ -24,7 +36,7 @@ STT_ENDPOINT = f"{SARVAM_BASE_URL}/speech-to-text"
 TTS_ENDPOINT = f"{SARVAM_BASE_URL}/text-to-speech"
 
 MAX_AUDIO_BYTES = 5 * 1024 * 1024  # 5 MB
-MAX_TEXT_CHARS = 2000  # 2,000 characters
+MAX_TEXT_CHARS = 2500  # Up to 2,500 characters supported by Sarvam TTS
 
 DEFAULT_STT_MODEL = "saaras:v4"
 DEFAULT_TTS_MODEL = "bulbul:v3"
@@ -69,29 +81,20 @@ _health_state: Dict[str, Any] = {
 
 def is_enabled() -> bool:
     """Return True only if SARVAM_ENABLED is explicitly set to true in environment."""
-    return os.environ.get("SARVAM_ENABLED", "false").strip().lower() in ("true", "1", "yes")
+    return is_sarvam_enabled()
 
 
 def is_configured() -> bool:
     """Return True only if Sarvam is enabled and an API key is present."""
-    key = os.environ.get("SARVAM_API_KEY", "").strip()
-    return is_enabled() and bool(key)
+    return is_sarvam_configured()
 
 
 def get_stt_model() -> str:
-    m = os.environ.get("SARVAM_STT_MODEL", DEFAULT_STT_MODEL).strip()
-    # Guard against deprecated saarika:v2
-    if not m or m.lower() in ("saarika:v2", "saarika:v1"):
-        return DEFAULT_STT_MODEL
-    return m
+    return get_sarvam_stt_model()
 
 
 def get_tts_model() -> str:
-    m = os.environ.get("SARVAM_TTS_MODEL", DEFAULT_TTS_MODEL).strip()
-    # Guard against deprecated bulbul:v1 or bulbul:v2
-    if not m or m.lower() in ("bulbul:v1", "bulbul:v2"):
-        return DEFAULT_TTS_MODEL
-    return m
+    return get_sarvam_tts_model()
 
 
 def resolve_speaker(speaker: str) -> str:
@@ -101,14 +104,10 @@ def resolve_speaker(speaker: str) -> str:
 
 def _sanitize_error(error_msg: str) -> str:
     """Sanitize error messages to ensure API keys and auth headers are never leaked."""
-    key = os.environ.get("SARVAM_API_KEY", "").strip()
-    if key and key in error_msg:
-        error_msg = error_msg.replace(key, "[REDACTED_KEY]")
-    # Redact potential authorization header patterns
-    error_msg = re.sub(r"(?i)api-subscription-key['\":\s]+[\w\-]+", "api-subscription-key: [REDACTED]", error_msg)
-    _health_state["last_error"] = error_msg
+    sanitized = sanitize_secret(error_msg)
+    _health_state["last_error"] = sanitized
     _health_state["last_error_at"] = datetime.now(timezone.utc).isoformat()
-    return error_msg
+    return sanitized
 
 
 def speech_to_text(audio_b64: str, language_code: str = "hi-IN") -> Tuple[bool, str]:
@@ -119,7 +118,7 @@ def speech_to_text(audio_b64: str, language_code: str = "hi-IN") -> Tuple[bool, 
     if not is_enabled():
         return False, "Sarvam integration is disabled by default. Set SARVAM_ENABLED=true in .env to enable."
 
-    api_key = os.environ.get("SARVAM_API_KEY", "").strip()
+    api_key = get_sarvam_api_key()
     if not api_key:
         return False, "Sarvam API key not configured. Set SARVAM_API_KEY in .env"
 
@@ -129,8 +128,13 @@ def speech_to_text(audio_b64: str, language_code: str = "hi-IN") -> Tuple[bool, 
     if not audio_b64 or not isinstance(audio_b64, str):
         return False, "Audio payload must be a non-empty base64 string."
 
+    # Strip data-URI prefix if present (e.g. data:audio/wav;base64,...)
+    clean_b64 = audio_b64.strip()
+    if "," in clean_b64 and "base64" in clean_b64.split(",", 1)[0].lower():
+        clean_b64 = clean_b64.split(",", 1)[1].strip()
+
     try:
-        audio_bytes = base64.b64decode(audio_b64, validate=True)
+        audio_bytes = base64.b64decode(clean_b64, validate=True)
     except Exception:
         return False, "Invalid base64 encoding in audio payload."
 
@@ -149,6 +153,9 @@ def speech_to_text(audio_b64: str, language_code: str = "hi-IN") -> Tuple[bool, 
     elif audio_bytes.startswith(b"ID3") or (len(audio_bytes) > 2 and audio_bytes[:2] in (b"\xff\xfb", b"\xff\xf3")):
         filename = "audio.mp3"
         content_type = "audio/mp3"
+    elif len(audio_bytes) > 8 and (audio_bytes[4:8] == b"ftyp" or audio_bytes.startswith(b"\x00\x00\x00")):
+        filename = "audio.mp4"
+        content_type = "audio/mp4"
 
     try:
         headers = {
@@ -165,11 +172,21 @@ def speech_to_text(audio_b64: str, language_code: str = "hi-IN") -> Tuple[bool, 
         _health_state["stt_call_count"] += 1
         return True, transcript
     except requests.exceptions.Timeout:
-        return False, "Sarvam STT service request timed out after 15 seconds."
+        msg = "Sarvam STT service request timed out after 15 seconds."
+        _sanitize_error(msg)
+        return False, msg
     except requests.exceptions.HTTPError as e:
         status = e.response.status_code if e.response is not None else 500
         text = e.response.text[:200] if e.response is not None else str(e)
-        return False, _sanitize_error(f"Sarvam STT API HTTP error {status}: {text}")
+        if status in (401, 403):
+            err = f"Sarvam STT authentication failed (HTTP {status}): {text}"
+        elif status == 429:
+            err = f"Sarvam STT rate limit exceeded (HTTP 429): {text}"
+        elif status == 400:
+            err = f"Sarvam STT bad request (HTTP 400): {text}"
+        else:
+            err = f"Sarvam STT API HTTP error {status}: {text}"
+        return False, _sanitize_error(err)
     except Exception as e:
         return False, _sanitize_error(f"Sarvam STT error: {str(e)}")
 
@@ -179,11 +196,12 @@ def text_to_speech(text: str, language_code: str = "hi-IN",
     """
     Convert text to speech via Sarvam TTS.
     Returns (success, base64_audio_or_error_message).
+    Uses the modern official Sarvam 'text' parameter (inputs is deprecated and rejected if combined).
     """
     if not is_enabled():
         return False, "Sarvam integration is disabled by default. Set SARVAM_ENABLED=true in .env to enable."
 
-    api_key = os.environ.get("SARVAM_API_KEY", "").strip()
+    api_key = get_sarvam_api_key()
     if not api_key:
         return False, "Sarvam API key not configured. Set SARVAM_API_KEY in .env"
 
@@ -207,9 +225,9 @@ def text_to_speech(text: str, language_code: str = "hi-IN",
             "api-subscription-key": api_key,
             "Content-Type": "application/json",
         }
-        # Provide compatible schema supported across bulbul:v3 and bulbul:v4-flash
+        # Official modern Sarvam AI schema uses 'text', 'target_language_code', 'speaker', 'model'
         payload = {
-            "inputs": [text[:500]],
+            "text": text[:MAX_TEXT_CHARS],
             "target_language_code": language_code,
             "speaker": resolved_speaker,
             "model": tts_model,
@@ -219,16 +237,28 @@ def text_to_speech(text: str, language_code: str = "hi-IN",
         result = resp.json()
         audios = result.get("audios", [])
         if not audios:
-            return False, "No audio data returned by Sarvam TTS."
+            msg = "No audio data returned by Sarvam TTS."
+            _sanitize_error(msg)
+            return False, msg
         _health_state["last_tts_success_at"] = datetime.now(timezone.utc).isoformat()
         _health_state["tts_call_count"] += 1
         return True, audios[0]
     except requests.exceptions.Timeout:
-        return False, "Sarvam TTS service request timed out after 20 seconds."
+        msg = "Sarvam TTS service request timed out after 20 seconds."
+        _sanitize_error(msg)
+        return False, msg
     except requests.exceptions.HTTPError as e:
         status = e.response.status_code if e.response is not None else 500
-        text = e.response.text[:200] if e.response is not None else str(e)
-        return False, _sanitize_error(f"Sarvam TTS API HTTP error {status}: {text}")
+        text_resp = e.response.text[:200] if e.response is not None else str(e)
+        if status in (401, 403):
+            err = f"Sarvam TTS authentication failed (HTTP {status}): {text_resp}"
+        elif status == 429:
+            err = f"Sarvam TTS rate limit exceeded (HTTP 429): {text_resp}"
+        elif status == 400:
+            err = f"Sarvam TTS bad request (HTTP 400): {text_resp}"
+        else:
+            err = f"Sarvam TTS API HTTP error {status}: {text_resp}"
+        return False, _sanitize_error(err)
     except Exception as e:
         return False, _sanitize_error(f"Sarvam TTS error: {str(e)}")
 
